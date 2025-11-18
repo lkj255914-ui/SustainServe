@@ -19,15 +19,7 @@ import {
   CardTitle,
 } from '../ui/card';
 import { Checkbox } from '../ui/checkbox';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '../ui/dialog';
 import { Button } from '../ui/button';
-import { updateApplicationStatusAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useTransition } from 'react';
 import { CheckCircle, HelpCircle, Loader2, XCircle } from 'lucide-react';
@@ -37,6 +29,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/tooltip';
+import { useFirestore, updateDocumentNonBlocking } from '@/firebase';
+import { doc } from 'firebase/firestore';
+
 
 function getStatusBadge(status: WasteApplication['status']) {
   switch (status) {
@@ -62,6 +57,7 @@ export function ApplicationsTable({
 }) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
+  const firestore = useFirestore();
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -88,23 +84,30 @@ export function ApplicationsTable({
     applicationId: string,
     newStatus: 'approved' | 'rejected'
   ) => {
-    startTransition(async () => {
-      const result = await updateApplicationStatusAction(
-        applicationId,
-        newStatus
-      );
-      if (result.success) {
-        toast({
-          title: `Application ${newStatus}`,
-          description: `The application has been successfully ${newStatus}.`,
-        });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Update Failed',
-          description: result.error,
-        });
-      }
+     if (!firestore) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Firestore is not initialized.',
+      });
+      return;
+    }
+    
+    startTransition(() => {
+        try {
+            const applicationRef = doc(firestore, 'wasteApplications', applicationId);
+            updateDocumentNonBlocking(applicationRef, { status: newStatus });
+            toast({
+                title: `Application ${newStatus}`,
+                description: `The application has been successfully ${newStatus}. The changes will appear shortly.`,
+            });
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: 'Update Failed',
+                description: error.message || "An unexpected error occurred."
+            });
+        }
     });
   };
 

@@ -12,8 +12,6 @@ import {
 } from '@/ai/flows/verify-waste-image';
 import { revalidatePath } from 'next/cache';
 import type { WasteApplication } from '@/lib/types';
-import { initAdmin } from '@/lib/firebase-admin';
-import { getFirestore } from 'firebase-admin/firestore';
 
 
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
@@ -50,33 +48,6 @@ export async function runRouteOptimizationAction(
   } catch (e: any) {
     console.error(e);
     return { success: false, error: e.message || 'An unknown error occurred during optimization.' };
-  }
-}
-
-export async function updateApplicationStatusAction(
-  applicationId: string,
-  status: 'approved' | 'rejected'
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    await initAdmin();
-    const db = getFirestore();
-    const applicationRef = db.collection('wasteApplications').doc(applicationId);
-
-    await applicationRef.update({ status });
-
-    // Revalidate the path to update the cache on the client
-    revalidatePath('/admin');
-    revalidatePath('/dashboard');
-
-    return { success: true };
-  } catch (error: any)
-   {
-    console.error('Error updating application status:', error);
-    // Provide a more specific error message for permission issues
-    if (error.code === 'permission-denied' || error.code === 7) { // Firestore permission denied code is 7
-        return { success: false, error: 'Permission denied. You might not have the required admin rights.' };
-    }
-    return { success: false, error: error.message || 'Failed to update status.' };
   }
 }
 
