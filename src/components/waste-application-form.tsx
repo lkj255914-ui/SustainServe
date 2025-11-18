@@ -33,9 +33,8 @@ import { useState, useTransition } from 'react';
 import { Camera, Loader2, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, useFirestore, useUser } from '@/firebase';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useUser, setDocumentNonBlocking } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 
 const formSchema = z.object({
@@ -57,7 +56,6 @@ export function WasteApplicationForm() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const { toast } = useToast();
   const firestore = useFirestore();
-  const auth = useAuth();
   const { user } = useUser();
 
   const form = useForm<FormValues>({
@@ -116,7 +114,7 @@ export function WasteApplicationForm() {
   };
 
   async function onSubmit(values: FormValues) {
-    if (!firestore || !auth.currentUser) {
+    if (!firestore || !user) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -126,47 +124,41 @@ export function WasteApplicationForm() {
     }
     
     startTransition(async () => {
-      try {
-        // Show immediate feedback to the user
         toast({
           title: 'Submitting Application...',
-          description: 'Your waste application is being submitted.',
+          description: 'Please wait while your application is being submitted.',
         });
-        
+      try {
+        let photoUrl = '';
         const newDocRef = doc(collection(firestore, 'wasteApplications'));
 
-        // Handle photo upload without blocking
+        // Step 1: Upload photo if it exists
         if (values.photoDataUri) {
           const storage = getStorage();
-          const storageRef = ref(storage, `waste-photos/${auth.currentUser?.uid}/${newDocRef.id}`);
-          uploadString(storageRef, values.photoDataUri, 'data_url').then(async (snapshot) => {
-            const photoUrl = await getDownloadURL(snapshot.ref);
-            // This is a non-blocking update operation
-            addDocumentNonBlocking(collection(firestore, `wasteApplications/${newDocRef.id}/updates`), { photoUrl });
-          }).catch(error => {
-            console.error("Photo upload failed:", error);
-            // Optionally notify user of photo upload failure
-          });
+          const storageRef = ref(storage, `waste-photos/${user.uid}/${newDocRef.id}`);
+          const snapshot = await uploadString(storageRef, values.photoDataUri, 'data_url');
+          photoUrl = await getDownloadURL(snapshot.ref);
         }
         
+        // Step 2: Prepare application data
         const applicationData = {
           ...values,
           id: newDocRef.id,
-          photoUrl: '', // Start with empty photoURL
+          photoUrl: photoUrl,
           quantity: parseFloat(values.quantity) || 0,
-          userId: auth.currentUser.uid,
-          userEmail: auth.currentUser.email,
+          userId: user.uid,
+          userEmail: user.email,
           status: 'submitted',
           submissionDate: new Date().toISOString(),
         };
         
-        addDocumentNonBlocking(collection(firestore, 'wasteApplications'), applicationData);
+        // Step 3: Save the document to Firestore
+        setDocumentNonBlocking(newDocRef, applicationData, { merge: false });
         
-        // Reset form immediately
+        // Step 4: Reset form and provide feedback
         form.reset();
         setPhotoPreview(null);
 
-        // Update toast to success
         toast({
           title: 'Application Submitted',
           description: 'Your waste application has been successfully submitted.',
@@ -177,7 +169,7 @@ export function WasteApplicationForm() {
         toast({
           variant: 'destructive',
           title: 'Submission Failed',
-          description: 'An unexpected error occurred.',
+          description: 'An unexpected error occurred. Please try again.',
         });
       }
     });
@@ -377,3 +369,5 @@ export function WasteApplicationForm() {
     </Card>
   );
 }
+
+    
