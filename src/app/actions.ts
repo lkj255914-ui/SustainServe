@@ -11,10 +11,11 @@ import {
     VerifyWasteImageOutput,
 } from '@/ai/flows/verify-waste-image';
 import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
 import type { WasteApplication } from '@/lib/types';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initAdmin } from '@/lib/firebase-admin';
+import { getFirestore, doc, updateDoc } from 'firebase/firestore';
+import { initializeApp, getApps }from 'firebase/app';
+import { firebaseConfig } from '@/firebase/config';
+
 
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -53,27 +54,41 @@ export async function runRouteOptimizationAction(
   }
 }
 
+// Helper to initialize a client-side app within server actions
+const getClientApp = () => {
+    if (getApps().length) {
+        return getApps()[0];
+    }
+    return initializeApp(firebaseConfig);
+}
+
 export async function updateApplicationStatusAction(
   applicationId: string,
   status: 'approved' | 'rejected'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await initAdmin();
-    const db = getFirestore();
-    const applicationRef = db.collection('wasteApplications').doc(applicationId);
+    const app = getClientApp();
+    const db = getFirestore(app);
+    const applicationRef = doc(db, 'wasteApplications', applicationId);
 
-    await applicationRef.update({ status });
+    await updateDoc(applicationRef, { status });
 
     // Revalidate the path to update the cache on the client
     revalidatePath('/admin');
     revalidatePath('/dashboard');
 
     return { success: true };
-  } catch (error: any) {
+  } catch (error: any)
+   {
     console.error('Error updating application status:', error);
+    // Provide a more specific error message for permission issues
+    if (error.code === 'permission-denied') {
+        return { success: false, error: 'Permission denied. You might not have the required admin rights.' };
+    }
     return { success: false, error: error.message || 'Failed to update status.' };
   }
 }
+
 
 export async function runWasteVerificationAction(
     input: VerifyWasteImageInput
