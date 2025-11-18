@@ -179,23 +179,6 @@ export function WasteApplicationForm() {
     }
   };
 
-  const handleShowPhotoLocation = () => {
-    const lat = form.getValues('photoLatitude');
-    const lng = form.getValues('photoLongitude');
-    if (lat && lng) {
-      toast({
-        title: 'Photo GPS Coordinates',
-        description: `Latitude: ${lat.toFixed(6)}, Longitude: ${lng.toFixed(6)}`,
-      });
-    } else {
-      toast({
-        title: 'No GPS Data Available',
-        description: 'Could not find GPS coordinates in the photo metadata.',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const handleWasteVerification = () => {
     const photoDataUri = form.getValues('photoDataUri');
     const wasteType = form.getValues('wasteType');
@@ -427,9 +410,6 @@ export function WasteApplicationForm() {
                               >
                                 Upload Photo
                               </label>
-                            </Button>
-                            <Button type="button" variant="secondary" onClick={handleShowPhotoLocation} disabled={!photoPreview} className='w-full'>
-                                Show Photo Location
                             </Button>
                            </div>
                           <input
