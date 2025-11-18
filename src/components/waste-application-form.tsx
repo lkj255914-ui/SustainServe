@@ -30,11 +30,10 @@ import {
   SelectValue,
 } from './ui/select';
 import { useState, useTransition } from 'react';
-import { suggestWasteTypesAction, submitWasteApplicationAction } from '@/app/actions';
+import { submitWasteApplicationAction } from '@/app/actions';
 import { Camera, Loader2, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import { Badge } from './ui/badge';
 
 const formSchema = z.object({
   department: z.string().min(2, 'Department is required.'),
@@ -49,10 +48,8 @@ const formSchema = z.object({
 
 export function WasteApplicationForm() {
   const [isPending, startTransition] = useTransition();
-  const [isSuggesting, startSuggestionTransition] = useTransition();
   const [isLocating, setIsLocating] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [suggestedTypes, setSuggestedTypes] = useState<string[]>([]);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -73,19 +70,6 @@ export function WasteApplicationForm() {
         const dataUri = reader.result as string;
         setPhotoPreview(dataUri);
         form.setValue('photoDataUri', dataUri);
-        setSuggestedTypes([]); // Clear old suggestions
-        startSuggestionTransition(async () => {
-          const result = await suggestWasteTypesAction({ photoDataUri: dataUri });
-          if (result.success && result.data) {
-            setSuggestedTypes(result.data.wasteTypes);
-          } else {
-             toast({
-              variant: "destructive",
-              title: "AI Suggestion Failed",
-              description: result.error,
-            });
-          }
-        });
       };
       reader.readAsDataURL(file);
     }
@@ -121,7 +105,6 @@ export function WasteApplicationForm() {
             });
             form.reset();
             setPhotoPreview(null);
-            setSuggestedTypes([]);
         } else {
             toast({
                 variant: "destructive",
@@ -215,23 +198,7 @@ export function WasteApplicationForm() {
                     </FormItem>
                   )}
                 />
-                 {(isSuggesting || suggestedTypes.length > 0) && (
-                  <FormItem>
-                    <FormLabel>AI Suggestions</FormLabel>
-                    <div className="flex flex-wrap gap-2">
-                      {isSuggesting ? (
-                        <Badge variant="secondary"><Loader2 className="mr-2 h-3 w-3 animate-spin" />Analyzing...</Badge>
-                      ) : (
-                        suggestedTypes.map(type => (
-                            <Badge key={type} variant="outline" className="cursor-pointer hover:bg-accent" onClick={() => form.setValue('wasteType', type)}>
-                                {type}
-                            </Badge>
-                        ))
-                      )}
-                    </div>
-                    <FormDescription>Click a suggestion to select it.</FormDescription>
-                  </FormItem>
-                )}
+                
                  <FormField
                     control={form.control}
                     name="wasteType"

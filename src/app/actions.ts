@@ -1,11 +1,6 @@
 'use server';
 
 import {
-  suggestWasteTypes,
-  SuggestWasteTypesInput,
-  SuggestWasteTypesOutput,
-} from '@/ai/flows/suggest-waste-types';
-import {
   optimizeCollectionRoutes,
   OptimizeCollectionRoutesInput,
   OptimizeCollectionRoutesOutput,
@@ -14,18 +9,6 @@ import { z } from 'zod';
 import { WasteApplication } from './lib/data';
 
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
-
-export async function suggestWasteTypesAction(
-  input: SuggestWasteTypesInput
-): Promise<ActionResult<SuggestWasteTypesOutput>> {
-  try {
-    const output = await suggestWasteTypes(input);
-    return { success: true, data: output };
-  } catch (e: any) {
-    console.error(e);
-    return { success: false, error: e.message || 'An unknown error occurred.' };
-  }
-}
 
 const formSchema = z.object({
   department: z.string().min(2, 'Department is required.'),
