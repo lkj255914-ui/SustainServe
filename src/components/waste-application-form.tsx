@@ -83,15 +83,26 @@ export function WasteApplicationForm() {
             const long = tags['GPSLongitude']?.description;
 
             if(lat && long) {
-                form.setValue('photoLatitude', typeof lat === 'number' ? lat : parseFloat(lat));
-                form.setValue('photoLongitude', typeof long === 'number' ? long : parseFloat(long));
+                const latitude = typeof lat === 'number' ? lat : parseFloat(lat);
+                const longitude = typeof long === 'number' ? long : parseFloat(long);
+                form.setValue('photoLatitude', latitude, { shouldValidate: true });
+                form.setValue('photoLongitude', longitude, { shouldValidate: true });
                  toast({
                     title: 'Photo Location Found',
                     description: 'GPS coordinates were extracted from the photo metadata.',
                 });
+            } else {
+                 toast({
+                    title: 'No GPS Data',
+                    description: 'Could not find GPS coordinates in the photo metadata.',
+                });
             }
         } catch (e) {
             console.warn("Could not read EXIF data from photo.", e)
+             toast({
+                title: 'Metadata Error',
+                description: 'Could not read metadata from the uploaded photo.',
+            });
         }
 
       const options = {
@@ -297,24 +308,36 @@ export function WasteApplicationForm() {
                     Click the pin to get your current location from the browser.
                   </FormDescription>
                 </FormItem>
-                 <FormItem>
-                  <FormLabel>Photo Geolocation</FormLabel>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Photo Latitude"
-                      {...form.register('photoLatitude')}
-                      disabled
-                    />
-                    <Input
-                      placeholder="Photo Longitude"
-                      {...form.register('photoLongitude')}
-                      disabled
-                    />
-                  </div>
-                  <FormDescription>
-                    GPS data extracted automatically from photo metadata, if available.
-                  </FormDescription>
-                </FormItem>
+                 <FormField
+                  control={form.control}
+                  name="photoLatitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Photo Geolocation</FormLabel>
+                       <div className="flex gap-2">
+                        <FormControl>
+                            <Input
+                            placeholder="Photo Latitude"
+                            {...field}
+                            value={field.value ?? ''}
+                            disabled
+                            />
+                        </FormControl>
+                         <FormControl>
+                            <Input
+                                placeholder="Photo Longitude"
+                                {...form.register('photoLongitude')}
+                                value={form.getValues('photoLongitude') ?? ''}
+                                disabled
+                            />
+                        </FormControl>
+                       </div>
+                      <FormDescription>
+                        GPS data extracted automatically from photo metadata, if available.
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
               </div>
               <div className="space-y-4">
                 <FormField
@@ -435,3 +458,5 @@ export function WasteApplicationForm() {
     </Card>
   );
 }
+
+    
