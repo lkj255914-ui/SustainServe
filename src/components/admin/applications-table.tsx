@@ -27,13 +27,17 @@ import {
   DialogTrigger,
 } from '../ui/dialog';
 import { Button } from '../ui/button';
+import { updateApplicationStatusAction } from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
+import { useTransition } from 'react';
+import { Loader2 } from 'lucide-react';
 
 function getStatusBadge(status: WasteApplication['status']) {
   switch (status) {
     case 'submitted':
       return <Badge variant="secondary">Pending</Badge>;
     case 'approved':
-      return <Badge>Collected</Badge>;
+      return <Badge>Approved</Badge>;
     case 'rejected':
       return <Badge variant="destructive">Rejected</Badge>;
     default:
@@ -50,6 +54,9 @@ export function ApplicationsTable({
   selectedApplications: WasteApplication[];
   setSelectedApplications: (applications: WasteApplication[]) => void;
 }) {
+  const { toast } = useToast();
+  const [isPending, startTransition] = useTransition();
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedApplications(applications);
@@ -70,6 +77,24 @@ export function ApplicationsTable({
       );
     }
   };
+
+  const handleStatusUpdate = (applicationId: string, newStatus: 'approved' | 'rejected') => {
+    startTransition(async () => {
+      const result = await updateApplicationStatusAction(applicationId, newStatus);
+      if (result.success) {
+        toast({
+            title: `Application ${newStatus}`,
+            description: `The application has been successfully ${newStatus}.`,
+        });
+      } else {
+        toast({
+            variant: 'destructive',
+            title: 'Update Failed',
+            description: result.error,
+        });
+      }
+    });
+  }
 
   const isAllSelected =
     applications.length > 0 &&
@@ -100,6 +125,7 @@ export function ApplicationsTable({
               <TableHead className="hidden md:table-cell">Address</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Photo</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -151,6 +177,18 @@ export function ApplicationsTable({
                       </DialogContent>
                     </Dialog>
                   )}
+                </TableCell>
+                <TableCell>
+                  {app.status === 'submitted' ? (
+                    <div className="flex gap-2">
+                       <Button size="sm" onClick={() => handleStatusUpdate(app.id, 'approved')} disabled={isPending}>
+                        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Approve'}
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleStatusUpdate(app.id, 'rejected')} disabled={isPending}>
+                         {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reject'}
+                      </Button>
+                    </div>
+                  ) : null }
                 </TableCell>
               </TableRow>
             ))}
