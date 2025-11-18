@@ -1,3 +1,16 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero",
+      "description": "Lush green valley with a clean river, representing sustainability.",
+      "imageUrl": "https://images.unsplash.com/uploads/1412026095116d2b0c90e/3bf33993?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxncmVlbiUyMHZhbGxleXxlbnwwfHx8fDE3NjMzNzkyNzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "green valley"
+    },
+    {
+      "id": "auth-bg",
+      "description": "Abstract green and blue geometric pattern.",
+      "imageUrl": "https://images.unsplash.com/photo-1593781243220-51578354c57d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxncmVlbiUyMGFic3RyYWN0fGVufDB8fHx8MTc2MzQ2NjA2N3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "green abstract"
+    }
+  ]
 }
