@@ -13,8 +13,11 @@ export default function LandingPage() {
       <header className="container mx-auto flex h-20 items-center justify-between px-4">
         <Logo />
         <nav className="flex items-center gap-4">
+          <Button variant="ghost" asChild>
+            <Link href="/login">Login</Link>
+          </Button>
           <Button asChild>
-            <Link href="/dashboard">Get Started</Link>
+            <Link href="/signup">Get Started</Link>
           </Button>
         </nav>
       </header>
@@ -41,7 +44,7 @@ export default function LandingPage() {
               greener impact.
             </p>
             <Button size="lg" className="mt-8" asChild>
-              <Link href="/dashboard">
+              <Link href="/signup">
                 Get Started <ArrowRight className="ml-2" />
               </Link>
             </Button>
