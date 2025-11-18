@@ -35,7 +35,7 @@ import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useFirestore, useUser } from '@/firebase';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 
 const formSchema = z.object({
@@ -120,24 +120,39 @@ export function WasteApplicationForm() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Firestore not available. Please try again later.',
+        description: 'You must be logged in to submit an application.',
       });
       return;
     }
     
     startTransition(async () => {
       try {
-        let photoUrl = '';
+        // Show immediate feedback to the user
+        toast({
+          title: 'Submitting Application...',
+          description: 'Your waste application is being submitted.',
+        });
+        
+        const newDocRef = doc(collection(firestore, 'wasteApplications'));
+
+        // Handle photo upload without blocking
         if (values.photoDataUri) {
           const storage = getStorage();
-          const storageRef = ref(storage, `waste-photos/${auth.currentUser?.uid}/${Date.now()}`);
-          const snapshot = await uploadString(storageRef, values.photoDataUri, 'data_url');
-          photoUrl = await getDownloadURL(snapshot.ref);
+          const storageRef = ref(storage, `waste-photos/${auth.currentUser?.uid}/${newDocRef.id}`);
+          uploadString(storageRef, values.photoDataUri, 'data_url').then(async (snapshot) => {
+            const photoUrl = await getDownloadURL(snapshot.ref);
+            // This is a non-blocking update operation
+            addDocumentNonBlocking(collection(firestore, `wasteApplications/${newDocRef.id}/updates`), { photoUrl });
+          }).catch(error => {
+            console.error("Photo upload failed:", error);
+            // Optionally notify user of photo upload failure
+          });
         }
-
+        
         const applicationData = {
           ...values,
-          photoUrl: photoUrl || '',
+          id: newDocRef.id,
+          photoUrl: '', // Start with empty photoURL
           quantity: parseFloat(values.quantity) || 0,
           userId: auth.currentUser.uid,
           userEmail: auth.currentUser.email,
@@ -145,15 +160,17 @@ export function WasteApplicationForm() {
           submissionDate: new Date().toISOString(),
         };
         
-        const docRef = await addDocumentNonBlocking(collection(firestore, 'wasteApplications'), applicationData);
+        addDocumentNonBlocking(collection(firestore, 'wasteApplications'), applicationData);
         
+        // Reset form immediately
+        form.reset();
+        setPhotoPreview(null);
+
+        // Update toast to success
         toast({
           title: 'Application Submitted',
           description: 'Your waste application has been successfully submitted.',
         });
-        
-        form.reset();
-        setPhotoPreview(null);
 
       } catch (error) {
         console.error('Submission Error:', error);

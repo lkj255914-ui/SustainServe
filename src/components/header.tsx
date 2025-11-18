@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Logo } from './logo';
 import { useAuth, useUser } from '@/firebase';
 import { Skeleton } from './ui/skeleton';
@@ -49,10 +49,10 @@ export function Header() {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="flex flex-col">
-          <nav className="grid gap-2 text-lg font-medium">
-            <div className="mb-4">
-              <Logo />
-            </div>
+          <SheetHeader className='border-b pb-4'>
+             <SheetTitle><Logo /></SheetTitle>
+          </SheetHeader>
+          <nav className="grid gap-2 text-lg font-medium pt-4">
             {navItems.map((item) => {
               if (item.adminOnly && user?.email !== 'jpratap731@gmail.com') {
                 return null;
