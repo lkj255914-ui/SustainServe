@@ -33,8 +33,8 @@ import { useState, useTransition } from 'react';
 import { Camera, Loader2, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser, setDocumentNonBlocking } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
+import { collection } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import imageCompression from 'browser-image-compression';
 import ExifReader from 'exifreader';
@@ -189,47 +189,50 @@ export function WasteApplicationForm() {
       return;
     }
 
-    startTransition(() => {
-      toast({
-        title: 'Application Submitted',
-        description: 'Your waste application has been received and is being processed.',
-      });
-      
-      const newDocId = doc(collection(firestore, 'wasteApplications')).id;
-
-      const applicationData = {
-        ...values,
-        id: newDocId,
-        photoUrl: '', // Start with an empty URL
-        quantity: parseFloat(values.quantity) || 0,
-        userId: user.uid,
-        userEmail: user.email,
-        status: 'submitted' as const,
-        submissionDate: new Date().toISOString(),
-      };
-      delete (applicationData as any).photoDataUri;
-
-      const applicationsCollection = collection(firestore, 'wasteApplications');
-      const newDocRef = doc(applicationsCollection, newDocId);
-      setDocumentNonBlocking(newDocRef, applicationData, {});
-
-      if (values.photoDataUri) {
-        const storage = getStorage();
-        const storageRef = ref(storage, `waste-photos/${user.uid}/${newDocId}`);
-        
-        uploadString(storageRef, values.photoDataUri, 'data_url')
-          .then(snapshot => getDownloadURL(snapshot.ref))
-          .then(photoUrl => {
-            setDocumentNonBlocking(newDocRef, { photoUrl: photoUrl }, { merge: true });
-          })
-          .catch(error => {
-            console.error("Background photo upload failed:", error);
-            setDocumentNonBlocking(newDocRef, { photoUrl: 'upload_failed' }, { merge: true });
+    startTransition(async () => {
+      let photoUrl = '';
+      try {
+        if (values.photoDataUri) {
+          toast({
+            title: 'Uploading Photo...',
+            description: 'Please wait, your photo is being uploaded.',
           });
-      }
+          const storage = getStorage();
+          const storageRef = ref(storage, `waste-photos/${user.uid}/${Date.now()}`);
+          const snapshot = await uploadString(storageRef, values.photoDataUri, 'data_url');
+          photoUrl = await getDownloadURL(snapshot.ref);
+        }
 
-      form.reset();
-      setPhotoPreview(null);
+        const applicationsCollection = collection(firestore, 'wasteApplications');
+        const applicationData = {
+          ...values,
+          id: '',
+          photoUrl: photoUrl,
+          quantity: parseFloat(values.quantity) || 0,
+          userId: user.uid,
+          userEmail: user.email,
+          status: 'submitted' as const,
+          submissionDate: new Date().toISOString(),
+        };
+        delete (applicationData as any).photoDataUri;
+        
+        const docRef = await addDocumentNonBlocking(applicationsCollection, applicationData);
+        
+        toast({
+          title: 'Application Submitted',
+          description: 'Your waste application has been received.',
+        });
+        
+        form.reset();
+        setPhotoPreview(null);
+      } catch (error: any) {
+        console.error('Submission Error:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Submission Failed',
+          description: error.message || 'An unexpected error occurred.',
+        });
+      }
     });
   }
 
@@ -308,36 +311,6 @@ export function WasteApplicationForm() {
                     Click the pin to get your current location from the browser.
                   </FormDescription>
                 </FormItem>
-                 <FormField
-                  control={form.control}
-                  name="photoLatitude"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Photo Geolocation</FormLabel>
-                       <div className="flex gap-2">
-                        <FormControl>
-                            <Input
-                            placeholder="Photo Latitude"
-                            {...field}
-                            value={field.value ?? ''}
-                            disabled
-                            />
-                        </FormControl>
-                         <FormControl>
-                            <Input
-                                placeholder="Photo Longitude"
-                                {...form.register('photoLongitude')}
-                                value={form.getValues('photoLongitude') ?? ''}
-                                disabled
-                            />
-                        </FormControl>
-                       </div>
-                      <FormDescription>
-                        GPS data extracted automatically from photo metadata, if available.
-                      </FormDescription>
-                    </FormItem>
-                  )}
-                />
               </div>
               <div className="space-y-4">
                 <FormField
@@ -382,7 +355,36 @@ export function WasteApplicationForm() {
                     </FormItem>
                   )}
                 />
-
+                 <FormField
+                  control={form.control}
+                  name="photoLatitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Photo Geolocation</FormLabel>
+                       <div className="flex gap-2">
+                        <FormControl>
+                            <Input
+                            placeholder="Photo Latitude"
+                            {...field}
+                            value={field.value ?? ''}
+                            disabled
+                            />
+                        </FormControl>
+                         <FormControl>
+                            <Input
+                                placeholder="Photo Longitude"
+                                {...form.register('photoLongitude')}
+                                value={form.getValues('photoLongitude') ?? ''}
+                                disabled
+                            />
+                        </FormControl>
+                       </div>
+                      <FormDescription>
+                        GPS data extracted automatically from photo metadata, if available.
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="wasteType"
