@@ -1,7 +1,8 @@
 export type User = {
-  name: string;
+  uid: string;
   email: string;
   role: 'user' | 'admin';
+  departmentId: string;
 };
 
 export type WasteApplication = {

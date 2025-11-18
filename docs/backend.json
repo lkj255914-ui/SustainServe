@@ -100,12 +100,17 @@
             "user",
             "admin"
           ]
+        },
+        "departmentId": {
+          "type": "string",
+          "description": "The ID of the department the user belongs to."
         }
       },
       "required": [
         "uid",
         "email",
-        "role"
+        "role",
+        "departmentId"
       ]
     }
   },

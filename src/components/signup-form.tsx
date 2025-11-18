@@ -28,13 +28,29 @@ import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 
 const formSchema = z.object({
   email: z.string().email('Invalid email address.'),
   password: z.string().min(6, 'Password must be at least 6 characters.'),
+  departmentId: z.string().min(1, 'Please select a department.'),
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+const departments = [
+  'Facilities',
+  'IT',
+  'HR',
+  'Operations',
+  'Marketing',
+];
 
 export function SignupForm() {
   const [isPending, setIsPending] = useState(false);
@@ -49,6 +65,7 @@ export function SignupForm() {
     defaultValues: {
       email: '',
       password: '',
+      departmentId: '',
     },
   });
 
@@ -65,11 +82,16 @@ export function SignupForm() {
 
       if (user && firestore) {
         const userDocRef = doc(firestore, 'users', user.uid);
-        setDocumentNonBlocking(userDocRef, {
+        setDocumentNonBlocking(
+          userDocRef,
+          {
             uid: user.uid,
             email: user.email,
             role: 'user',
-        }, { merge: true });
+            departmentId: values.departmentId,
+          },
+          { merge: true }
+        );
       }
 
       toast({
@@ -79,7 +101,7 @@ export function SignupForm() {
       router.push('/login');
     } catch (error: any) {
       console.error('Signup Error:', error);
-       setError(error.message || 'An unexpected error occurred.');
+      setError(error.message || 'An unexpected error occurred.');
       toast({
         variant: 'destructive',
         title: 'Signup Failed',
@@ -93,7 +115,9 @@ export function SignupForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="font-headline text-2xl">Create an Account</CardTitle>
+        <CardTitle className="font-headline text-2xl">
+          Create an Account
+        </CardTitle>
         <CardDescription>
           Get started with WasteWise by creating a new account.
         </CardDescription>
@@ -127,12 +151,39 @@ export function SignupForm() {
                   <FormControl>
                     <Input type="password" placeholder="••••••••" {...field} />
                   </FormControl>
-                   <FormMessage />
+                  <FormMessage />
                 </FormItem>
               )}
             />
-             {error && (
-                <p className="text-sm font-medium text-destructive">{error}</p>
+             <FormField
+              control={form.control}
+              name="departmentId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Department</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your department" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {error && (
+              <p className="text-sm font-medium text-destructive">{error}</p>
             )}
             <Button type="submit" disabled={isPending} className="w-full">
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
