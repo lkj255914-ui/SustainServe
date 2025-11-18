@@ -36,6 +36,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useUser, setDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { updateDoc } from 'firebase/firestore';
 
 const formSchema = z.object({
   departmentId: z.string().min(2, 'Department is required.'),
@@ -122,58 +123,62 @@ export function WasteApplicationForm() {
       });
       return;
     }
-    
-    startTransition(async () => {
-        toast({
-          title: 'Submitting Application...',
-          description: 'Please wait while your application is being submitted.',
-        });
-      try {
-        let photoUrl = '';
-        const newDocRef = doc(collection(firestore, 'wasteApplications'));
 
-        // Step 1: Upload photo if it exists
-        if (values.photoDataUri) {
-          const storage = getStorage();
-          const storageRef = ref(storage, `waste-photos/${user.uid}/${newDocRef.id}`);
-          const snapshot = await uploadString(storageRef, values.photoDataUri, 'data_url');
-          photoUrl = await getDownloadURL(snapshot.ref);
-        }
-        
-        // Step 2: Prepare application data
-        const applicationData = {
-          ...values,
-          id: newDocRef.id,
-          photoUrl: photoUrl,
-          quantity: parseFloat(values.quantity) || 0,
-          userId: user.uid,
-          userEmail: user.email,
-          status: 'submitted',
-          submissionDate: new Date().toISOString(),
-        };
-        
-        // Step 3: Save the document to Firestore
-        setDocumentNonBlocking(newDocRef, applicationData, { merge: false });
-        
-        // Step 4: Reset form and provide feedback
-        form.reset();
-        setPhotoPreview(null);
+    startTransition(() => {
+      // Show immediate feedback
+      toast({
+        title: 'Application Submitted',
+        description: 'Your waste application is being processed.',
+      });
 
-        toast({
-          title: 'Application Submitted',
-          description: 'Your waste application has been successfully submitted.',
-        });
+      // Create a new document reference with a unique ID
+      const newDocRef = doc(collection(firestore, 'wasteApplications'));
 
-      } catch (error) {
-        console.error('Submission Error:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Submission Failed',
-          description: 'An unexpected error occurred. Please try again.',
-        });
+      // Prepare the initial application data without the photo URL
+      const applicationData = {
+        ...values,
+        id: newDocRef.id,
+        photoUrl: '', // Will be updated later if a photo is provided
+        quantity: parseFloat(values.quantity) || 0,
+        userId: user.uid,
+        userEmail: user.email,
+        status: 'submitted',
+        submissionDate: new Date().toISOString(),
+      };
+      delete applicationData.photoDataUri; // We don't want to store the data URI in Firestore
+
+      // Save the document immediately, without waiting
+      setDocumentNonBlocking(newDocRef, applicationData, { merge: false });
+
+      // Handle photo upload in the background
+      if (values.photoDataUri) {
+        const photoDataUri = values.photoDataUri;
+        // Don't await this promise chain
+        (async () => {
+          try {
+            const storage = getStorage();
+            const storageRef = ref(storage, `waste-photos/${user.uid}/${newDocRef.id}`);
+            const snapshot = await uploadString(storageRef, photoDataUri, 'data_url');
+            const downloadURL = await getDownloadURL(snapshot.ref);
+
+            // Now, update the existing document with the photo URL
+            await updateDoc(newDocRef, {
+              photoUrl: downloadURL
+            });
+          } catch (error) {
+            console.error('Background Photo Upload Error:', error);
+            // Optionally, you could update the document to indicate the upload failed
+            // or trigger a notification to the user/admin.
+          }
+        })();
       }
+
+      // Reset the form right away
+      form.reset();
+      setPhotoPreview(null);
     });
   }
+
 
   return (
     <Card>
@@ -369,5 +374,3 @@ export function WasteApplicationForm() {
     </Card>
   );
 }
-
-    
