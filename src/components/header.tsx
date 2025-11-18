@@ -20,17 +20,8 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Logo } from './logo';
 import type { User } from '@/lib/types';
-import { logout } from '@/lib/auth.client';
-import { useRouter } from 'next/navigation';
 
 export function Header({ user }: { user: User }) {
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    await logout();
-    router.push('/login');
-    router.refresh();
-  };
 
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -73,7 +64,7 @@ export function Header({ user }: { user: User }) {
       <div className="w-full flex-1">
         {/* Can add a search bar here if needed */}
       </div>
-      <DropdownMenu>
+       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="secondary" size="icon" className="rounded-full">
             <CircleUser className="h-5 w-5" />
@@ -85,8 +76,6 @@ export function Header({ user }: { user: User }) {
           <DropdownMenuSeparator />
           <DropdownMenuItem>Settings</DropdownMenuItem>
           <DropdownMenuItem>Support</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>

@@ -1,16 +1,9 @@
-import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/auth';
 import { MOCK_APPLICATIONS } from '@/lib/data';
 import { ApplicationsTable } from '@/components/admin/applications-table';
 import { RouteOptimizer } from '@/components/admin/route-optimizer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default async function AdminPage() {
-  const user = await getCurrentUser();
-  if (user?.role !== 'admin') {
-    redirect('/dashboard');
-  }
-
   const applications = MOCK_APPLICATIONS;
   const pendingApplications = applications.filter(
     (app) => app.status === 'Pending'

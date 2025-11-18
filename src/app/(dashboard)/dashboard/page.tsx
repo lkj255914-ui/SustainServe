@@ -24,7 +24,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { getCurrentUser } from '@/lib/auth';
 import { MOCK_APPLICATIONS, WasteApplication } from '@/lib/data';
 
 function getStatusBadge(status: WasteApplication['status']) {
@@ -39,8 +38,7 @@ function getStatusBadge(status: WasteApplication['status']) {
 }
 
 export default async function Dashboard() {
-  const user = await getCurrentUser();
-  const userApplications = MOCK_APPLICATIONS.filter(app => app.userEmail === user?.email);
+  const userApplications = MOCK_APPLICATIONS;
   const totalApplications = userApplications.length;
   const pendingApplications = userApplications.filter(app => app.status === 'Pending').length;
   const totalQuantity = userApplications.reduce((acc, app) => {
