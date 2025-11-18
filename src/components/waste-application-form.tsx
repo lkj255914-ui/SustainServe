@@ -79,14 +79,12 @@ export function WasteApplicationForm() {
         
         try {
             const tags = await ExifReader.load(file);
-            const lat = tags['GPSLatitude']?.description;
-            const long = tags['GPSLongitude']?.description;
+            const latitude = tags?.GPSLatitude?.description;
+            const longitude = tags?.GPSLongitude?.description;
 
-            if(lat && long) {
-                const latitude = typeof lat === 'number' ? lat : parseFloat(lat);
-                const longitude = typeof long === 'number' ? long : parseFloat(long);
-                form.setValue('photoLatitude', latitude, { shouldValidate: true });
-                form.setValue('photoLongitude', longitude, { shouldValidate: true });
+            if(latitude && longitude) {
+                form.setValue('photoLatitude', Number(latitude), { shouldValidate: true });
+                form.setValue('photoLongitude', Number(longitude), { shouldValidate: true });
                  toast({
                     title: 'Photo Location Found',
                     description: 'GPS coordinates were extracted from the photo metadata.',
@@ -100,6 +98,7 @@ export function WasteApplicationForm() {
         } catch (e) {
             console.warn("Could not read EXIF data from photo.", e)
              toast({
+                variant: 'destructive',
                 title: 'Metadata Error',
                 description: 'Could not read metadata from the uploaded photo.',
             });
