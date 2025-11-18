@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Activity,
   ArrowUpRight,
@@ -24,28 +26,69 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { MOCK_APPLICATIONS, WasteApplication } from '@/lib/data';
+import type { WasteApplication } from '@/lib/types';
+import { useCollection, useFirestore, useUser } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { useMemo } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function getStatusBadge(status: WasteApplication['status']) {
-    switch (status) {
-        case 'Pending':
-            return <Badge variant="secondary">Pending</Badge>;
-        case 'Collected':
-            return <Badge>Collected</Badge>;
-        case 'Rejected':
-            return <Badge variant="destructive">Rejected</Badge>;
-    }
+  switch (status) {
+    case 'submitted':
+      return <Badge variant="secondary">Pending</Badge>;
+    case 'approved':
+      return <Badge>Collected</Badge>;
+    case 'rejected':
+      return <Badge variant="destructive">Rejected</Badge>;
+    default:
+        return <Badge variant="secondary">{status}</Badge>;
+  }
 }
 
-export default async function Dashboard() {
-  const userApplications = MOCK_APPLICATIONS;
-  const totalApplications = userApplications.length;
-  const pendingApplications = userApplications.filter(app => app.status === 'Pending').length;
-  const totalQuantity = userApplications.reduce((acc, app) => {
-    const quantity = parseFloat(app.quantity) || 0;
-    return acc + quantity;
-  }, 0);
+export default function Dashboard() {
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
 
+  const userApplicationsQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(
+      collection(firestore, 'wasteApplications'),
+      where('userId', '==', user.uid)
+    );
+  }, [firestore, user]);
+
+  const {
+    data: userApplications,
+    isLoading: isLoadingApplications,
+    error,
+  } = useCollection<WasteApplication>(userApplicationsQuery);
+
+  if (isUserLoading || isLoadingApplications) {
+    return (
+        <div className="flex flex-1 flex-col gap-4 md:gap-8 animate-in fade-in-0">
+        <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+            <Card><CardHeader><Skeleton className="h-4 w-24" /></CardHeader><CardContent><Skeleton className="h-6 w-12" /></CardContent></Card>
+            <Card><CardHeader><Skeleton className="h-4 w-24" /></CardHeader><CardContent><Skeleton className="h-6 w-12" /></CardContent></Card>
+            <Card><CardHeader><Skeleton className="h-4 w-24" /></CardHeader><CardContent><Skeleton className="h-6 w-12" /></CardContent></Card>
+            <Card><CardHeader><Skeleton className="h-4 w-24" /></CardHeader><CardContent><Skeleton className="h-6 w-12" /></CardContent></Card>
+        </div>
+        <Card>
+            <CardHeader><Skeleton className="h-8 w-48" /></CardHeader>
+            <CardContent><Skeleton className="h-48 w-full" /></CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return <div className="text-destructive">Error: {error.message}</div>
+  }
+
+  const totalApplications = userApplications?.length || 0;
+  const pendingApplications =
+    userApplications?.filter((app) => app.status === 'submitted').length || 0;
+  const totalQuantity =
+    userApplications?.reduce((acc, app) => acc + (app.quantity || 0), 0) || 0;
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8 animate-in fade-in-0">
@@ -92,7 +135,9 @@ export default async function Dashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Efficiency Score</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Efficiency Score
+            </CardTitle>
             <BadgeCent className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -131,33 +176,37 @@ export default async function Dashboard() {
                   <TableHead className="hidden md:table-cell">
                     Submission Date
                   </TableHead>
-                  <TableHead>
-                    Status
-                  </TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>
                     <span className="sr-only">Actions</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {userApplications.slice(0, 5).map(app => (
-                    <TableRow key={app.applicationId}>
-                        <TableCell className="font-medium">{app.applicationId}</TableCell>
-                        <TableCell>{app.wasteType}</TableCell>
-                        <TableCell className="hidden md:table-cell">{app.department}</TableCell>
-                        <TableCell className="hidden md:table-cell">{app.submissionDate}</TableCell>
-                        <TableCell>{getStatusBadge(app.status)}</TableCell>
-                         <TableCell>
-                            <Button variant="ghost" size="sm">View</Button>
-                        </TableCell>
-                    </TableRow>
+                {userApplications && userApplications.slice(0, 5).map((app) => (
+                  <TableRow key={app.id}>
+                    <TableCell className="font-medium">{app.id.substring(0,7)}</TableCell>
+                    <TableCell>{app.wasteType}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {app.departmentId}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {new Date(app.submissionDate).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(app.status)}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm">
+                        View
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 ))}
               </TableBody>
             </Table>
-             {userApplications.length === 0 && (
-                <div className="text-center py-10 text-muted-foreground">
-                    No applications found.
-                </div>
+            {(!userApplications || userApplications.length === 0) && (
+              <div className="text-center py-10 text-muted-foreground">
+                No applications found.
+              </div>
             )}
           </CardContent>
         </Card>
