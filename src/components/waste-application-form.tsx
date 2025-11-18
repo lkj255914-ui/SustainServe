@@ -33,10 +33,10 @@ import { useState, useTransition } from 'react';
 import { Camera, Loader2, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser, setDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { updateDoc } from 'firebase/firestore';
+import imageCompression from 'browser-image-compression';
 
 const formSchema = z.object({
   departmentId: z.string().min(2, 'Department is required.'),
@@ -70,16 +70,51 @@ export function WasteApplicationForm() {
     },
   });
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUri = reader.result as string;
-        setPhotoPreview(dataUri);
-        form.setValue('photoDataUri', dataUri);
+        
+      const options = {
+        maxSizeMB: 1, // (default: 1)
+        maxWidthOrHeight: 1920, // (default: 1920)
+        useWebWorker: true, // (default: true)
       };
-      reader.readAsDataURL(file);
+      
+      try {
+        toast({
+          title: 'Compressing Image...',
+          description: 'Please wait while we optimize your photo.',
+        });
+        const compressedFile = await imageCompression(file, options);
+        
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const dataUri = reader.result as string;
+            setPhotoPreview(dataUri);
+            form.setValue('photoDataUri', dataUri);
+             toast({
+              title: 'Image Ready!',
+              description: 'Your photo has been compressed and is ready for upload.',
+            });
+        };
+        reader.readAsDataURL(compressedFile);
+
+      } catch (error) {
+        console.error('Image compression error:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Compression Failed',
+          description: 'Could not compress the image. Please try another one.',
+        });
+        // Fallback to original file if compression fails
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const dataUri = reader.result as string;
+            setPhotoPreview(dataUri);
+            form.setValue('photoDataUri', dataUri);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -114,7 +149,7 @@ export function WasteApplicationForm() {
     }
   };
 
-  async function onSubmit(values: FormValues) {
+ async function onSubmit(values: FormValues) {
     if (!firestore || !user) {
       toast({
         variant: 'destructive',
@@ -124,58 +159,56 @@ export function WasteApplicationForm() {
       return;
     }
 
-    startTransition(() => {
-      // Show immediate feedback
-      toast({
-        title: 'Application Submitted',
-        description: 'Your waste application is being processed.',
-      });
+    startTransition(async () => {
+      try {
+        let photoUrl = '';
+        const newDocId = doc(collection(firestore, 'wasteApplications')).id;
 
-      // Create a new document reference with a unique ID
-      const newDocRef = doc(collection(firestore, 'wasteApplications'));
+        if (values.photoDataUri) {
+          const storage = getStorage();
+          const storageRef = ref(storage, `waste-photos/${user.uid}/${newDocId}`);
+          
+          toast({
+            title: 'Uploading Photo...',
+            description: 'This may take a moment depending on your connection.',
+          });
 
-      // Prepare the initial application data without the photo URL
-      const applicationData = {
-        ...values,
-        id: newDocRef.id,
-        photoUrl: '', // Will be updated later if a photo is provided
-        quantity: parseFloat(values.quantity) || 0,
-        userId: user.uid,
-        userEmail: user.email,
-        status: 'submitted',
-        submissionDate: new Date().toISOString(),
-      };
-      delete applicationData.photoDataUri; // We don't want to store the data URI in Firestore
+          const snapshot = await uploadString(storageRef, values.photoDataUri, 'data_url');
+          photoUrl = await getDownloadURL(snapshot.ref);
+        }
 
-      // Save the document immediately, without waiting
-      setDocumentNonBlocking(newDocRef, applicationData, { merge: false });
+        const applicationData = {
+          ...values,
+          id: newDocId,
+          photoUrl: photoUrl,
+          quantity: parseFloat(values.quantity) || 0,
+          userId: user.uid,
+          userEmail: user.email,
+          status: 'submitted' as const,
+          submissionDate: new Date().toISOString(),
+        };
+        delete (applicationData as any).photoDataUri;
 
-      // Handle photo upload in the background
-      if (values.photoDataUri) {
-        const photoDataUri = values.photoDataUri;
-        // Don't await this promise chain
-        (async () => {
-          try {
-            const storage = getStorage();
-            const storageRef = ref(storage, `waste-photos/${user.uid}/${newDocRef.id}`);
-            const snapshot = await uploadString(storageRef, photoDataUri, 'data_url');
-            const downloadURL = await getDownloadURL(snapshot.ref);
+        const applicationsCollection = collection(firestore, 'wasteApplications');
+        const newDocRef = doc(applicationsCollection, newDocId);
+        
+        await addDocumentNonBlocking(applicationsCollection, applicationData);
 
-            // Now, update the existing document with the photo URL
-            await updateDoc(newDocRef, {
-              photoUrl: downloadURL
-            });
-          } catch (error) {
-            console.error('Background Photo Upload Error:', error);
-            // Optionally, you could update the document to indicate the upload failed
-            // or trigger a notification to the user/admin.
-          }
-        })();
+        toast({
+          title: 'Application Submitted',
+          description: 'Your waste application has been received.',
+        });
+
+        form.reset();
+        setPhotoPreview(null);
+      } catch (error: any) {
+        console.error('Submission Error:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Submission Failed',
+          description: error.message || 'An unexpected error occurred.',
+        });
       }
-
-      // Reset the form right away
-      form.reset();
-      setPhotoPreview(null);
     });
   }
 
