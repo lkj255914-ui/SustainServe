@@ -12,15 +12,18 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { login } from '@/lib/auth.client';
+import { useRouter } from 'next/navigation';
 
 export function LoginForm() {
+  const router = useRouter();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const email = formData.get('email') as string;
     await login(email);
-    window.location.href = '/dashboard';
+    router.push('/dashboard');
+    router.refresh();
   };
 
   return (
