@@ -30,7 +30,13 @@ import { Button } from '../ui/button';
 import { updateApplicationStatusAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useTransition } from 'react';
-import { Loader2 } from 'lucide-react';
+import { CheckCircle, HelpCircle, Loader2, XCircle } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/tooltip';
 
 function getStatusBadge(status: WasteApplication['status']) {
   switch (status) {
@@ -78,23 +84,29 @@ export function ApplicationsTable({
     }
   };
 
-  const handleStatusUpdate = (applicationId: string, newStatus: 'approved' | 'rejected') => {
+  const handleStatusUpdate = (
+    applicationId: string,
+    newStatus: 'approved' | 'rejected'
+  ) => {
     startTransition(async () => {
-      const result = await updateApplicationStatusAction(applicationId, newStatus);
+      const result = await updateApplicationStatusAction(
+        applicationId,
+        newStatus
+      );
       if (result.success) {
         toast({
-            title: `Application ${newStatus}`,
-            description: `The application has been successfully ${newStatus}.`,
+          title: `Application ${newStatus}`,
+          description: `The application has been successfully ${newStatus}.`,
         });
       } else {
         toast({
-            variant: 'destructive',
-            title: 'Update Failed',
-            description: result.error,
+          variant: 'destructive',
+          title: 'Update Failed',
+          description: result.error,
         });
       }
     });
-  }
+  };
 
   const isAllSelected =
     applications.length > 0 &&
@@ -109,107 +121,163 @@ export function ApplicationsTable({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                <Checkbox
-                  checked={isAllSelected}
-                  onCheckedChange={handleSelectAll}
-                />
-              </TableHead>
-              <TableHead>ID</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Waste Type</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead className="hidden md:table-cell">Address</TableHead>
-              <TableHead className="hidden lg:table-cell">Live Location</TableHead>
-              <TableHead className="hidden lg:table-cell">Photo Location</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Photo</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {applications.map((app) => (
-              <TableRow
-                key={app.id}
-                data-state={
-                  selectedApplications.some((a) => a.id === app.id)
-                    ? 'selected'
-                    : ''
-                }
-              >
-                <TableCell>
+        <TooltipProvider>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
                   <Checkbox
-                    checked={selectedApplications.some((a) => a.id === app.id)}
-                    onCheckedChange={(checked) =>
-                      handleSelectRow(app, !!checked)
-                    }
+                    checked={isAllSelected}
+                    onCheckedChange={handleSelectAll}
                   />
-                </TableCell>
-                <TableCell className="font-medium">{app.id.substring(0, 7)}</TableCell>
-                <TableCell>{getStatusBadge(app.status)}</TableCell>
-                <TableCell>{app.wasteType}</TableCell>
-                <TableCell>{app.departmentId}</TableCell>
-                <TableCell className="hidden md:table-cell">
-                  {app.address}
-                </TableCell>
-                <TableCell className="hidden lg:table-cell">
-                  {app.locationLatitude && app.locationLongitude
-                    ? `${app.locationLatitude.toFixed(4)}, ${app.locationLongitude.toFixed(4)}`
-                    : 'N/A'}
-                </TableCell>
-                 <TableCell className="hidden lg:table-cell">
-                  {app.photoLatitude && app.photoLongitude
-                    ? `${app.photoLatitude.toFixed(4)}, ${app.photoLongitude.toFixed(4)}`
-                    : 'N/A'}
-                </TableCell>
-                <TableCell>{new Date(app.submissionDate).toLocaleDateString()}</TableCell>
-                <TableCell>
-                  {app.photoUrl && (
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          View
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Waste Photo</DialogTitle>
-                        </DialogHeader>
-                        <div className="relative h-96 w-full">
-                           <Image
-                            src={app.photoUrl}
-                            alt="Waste"
-                            fill
-                            className="object-contain rounded-md"
-                          />
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {app.status === 'submitted' ? (
-                    <div className="flex gap-2">
-                       <Button size="sm" onClick={() => handleStatusUpdate(app.id, 'approved')} disabled={isPending}>
-                        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Approve'}
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleStatusUpdate(app.id, 'rejected')} disabled={isPending}>
-                         {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reject'}
-                      </Button>
-                    </div>
-                  ) : null }
-                </TableCell>
+                </TableHead>
+                <TableHead>ID</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Verified</TableHead>
+                <TableHead>Waste Type</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead className="hidden md:table-cell">Address</TableHead>
+                <TableHead className="hidden lg:table-cell">
+                  Live Location
+                </TableHead>
+                <TableHead className="hidden lg:table-cell">
+                  Photo Location
+                </TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Photo</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {applications.map((app) => (
+                <TableRow
+                  key={app.id}
+                  data-state={
+                    selectedApplications.some((a) => a.id === app.id)
+                      ? 'selected'
+                      : ''
+                  }
+                >
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedApplications.some(
+                        (a) => a.id === app.id
+                      )}
+                      onCheckedChange={(checked) =>
+                        handleSelectRow(app, !!checked)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {app.id.substring(0, 7)}
+                  </TableCell>
+                  <TableCell>{getStatusBadge(app.status)}</TableCell>
+                  <TableCell>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        {app.isVerified === true && (
+                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        )}
+                        {app.isVerified === false && (
+                          <XCircle className="h-5 w-5 text-red-500" />
+                        )}
+                        {app.isVerified === undefined && (
+                           <HelpCircle className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{app.verificationNotes || 'Verification not performed.'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell>{app.wasteType}</TableCell>
+                  <TableCell>{app.departmentId}</TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {app.address}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    {app.locationLatitude && app.locationLongitude
+                      ? `${app.locationLatitude.toFixed(
+                          4
+                        )}, ${app.locationLongitude.toFixed(4)}`
+                      : 'N/A'}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    {app.photoLatitude && app.photoLongitude
+                      ? `${app.photoLatitude.toFixed(
+                          4
+                        )}, ${app.photoLongitude.toFixed(4)}`
+                      : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(app.submissionDate).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    {app.photoUrl && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            View
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Waste Photo</DialogTitle>
+                          </DialogHeader>
+                          <div className="relative h-96 w-full">
+                            <Image
+                              src={app.photoUrl}
+                              alt="Waste"
+                              fill
+                              className="object-contain rounded-md"
+                            />
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {app.status === 'submitted' ? (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            handleStatusUpdate(app.id, 'approved')
+                          }
+                          disabled={isPending}
+                        >
+                          {isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            'Approve'
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() =>
+                            handleStatusUpdate(app.id, 'rejected')
+                          }
+                          disabled={isPending}
+                        >
+                          {isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            'Reject'
+                          )}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TooltipProvider>
         {applications.length === 0 && (
-            <div className="text-center py-10 text-muted-foreground">
-                No applications found.
-            </div>
+          <div className="text-center py-10 text-muted-foreground">
+            No applications found.
+          </div>
         )}
       </CardContent>
     </Card>

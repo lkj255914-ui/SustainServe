@@ -63,6 +63,14 @@
         "notes": {
           "type": "string",
           "description": "Additional notes for the application."
+        },
+        "isVerified": {
+            "type": "boolean",
+            "description": "Whether the waste type and photo match was verified by AI."
+        },
+        "verificationNotes": {
+            "type": "string",
+            "description": "The reason provided by the AI for the verification status."
         }
       },
       "required": [

@@ -20,4 +20,6 @@ export type WasteApplication = {
   address: string;
   status: 'submitted' | 'approved' | 'rejected';
   notes?: string;
+  isVerified?: boolean;
+  verificationNotes?: string;
 };

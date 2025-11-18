@@ -30,19 +30,30 @@ import {
   SelectValue,
 } from './ui/select';
 import { useState, useTransition } from 'react';
-import { Camera, CheckCircle, Loader2, MapPin, Sparkles, XCircle } from 'lucide-react';
+import {
+  Camera,
+  CheckCircle,
+  Loader2,
+  MapPin,
+  Sparkles,
+  XCircle,
+} from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
 import { collection } from 'firebase/firestore';
-import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
+import {
+  getStorage,
+  ref,
+  uploadString,
+  getDownloadURL,
+} from 'firebase/storage';
 import imageCompression from 'browser-image-compression';
 import ExifReader from 'exifreader';
 import { runWasteVerificationAction } from '@/app/actions';
 import type { VerifyWasteImageOutput } from '@/ai/flows/verify-waste-image';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-
 
 const formSchema = z.object({
   departmentId: z.string().min(2, 'Department is required.'),
@@ -64,7 +75,8 @@ export function WasteApplicationForm() {
   const [isVerificationPending, startVerificationTransition] = useTransition();
   const [isLocating, setIsLocating] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [verificationResult, setVerificationResult] = useState<VerifyWasteImageOutput | null>(null);
+  const [verificationResult, setVerificationResult] =
+    useState<VerifyWasteImageOutput | null>(null);
   const { toast } = useToast();
   const firestore = useFirestore();
   const { user } = useUser();
@@ -83,65 +95,70 @@ export function WasteApplicationForm() {
   const watchPhoto = form.watch('photoDataUri');
   const watchWasteType = form.watch('wasteType');
 
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (file) {
-        setVerificationResult(null); // Reset verification on new photo
-        try {
-            const tags = await ExifReader.load(file);
-            const latitude = tags?.GPSLatitude?.description;
-            const longitude = tags?.GPSLongitude?.description;
+      setVerificationResult(null); // Reset verification on new photo
+      try {
+        const tags = await ExifReader.load(file);
+        const latitude = tags?.GPSLatitude?.description;
+        const longitude = tags?.GPSLongitude?.description;
 
-            if(latitude && longitude) {
-                form.setValue('photoLatitude', Number(latitude), { shouldValidate: true });
-                form.setValue('photoLongitude', Number(longitude), { shouldValidate: true });
-                 toast({
-                    title: 'Photo Location Found',
-                    description: 'GPS coordinates were extracted from the photo metadata.',
-                });
-            }
-        } catch (e) {
-            console.warn("Could not read EXIF data from photo.", e)
+        if (typeof latitude === 'number' && typeof longitude === 'number') {
+          form.setValue('photoLatitude', latitude, { shouldValidate: true });
+          form.setValue('photoLongitude', longitude, {
+            shouldValidate: true,
+          });
+          toast({
+            title: 'Photo Location Found',
+            description:
+              'GPS coordinates were extracted from the photo metadata.',
+          });
         }
+      } catch (e) {
+        console.warn('Could not read EXIF data from photo.', e);
+      }
 
       const options = {
         maxSizeMB: 1,
         maxWidthOrHeight: 1920,
         useWebWorker: true,
       };
-      
+
       try {
         toast({
           title: 'Compressing Image...',
           description: 'Please wait while we optimize your photo.',
         });
         const compressedFile = await imageCompression(file, options);
-        
+
         const reader = new FileReader();
         reader.onloadend = () => {
-            const dataUri = reader.result as string;
-            setPhotoPreview(dataUri);
-            form.setValue('photoDataUri', dataUri);
-             toast({
-              title: 'Image Ready!',
-              description: 'Your photo has been compressed and is ready for upload.',
-            });
+          const dataUri = reader.result as string;
+          setPhotoPreview(dataUri);
+          form.setValue('photoDataUri', dataUri);
+          toast({
+            title: 'Image Ready!',
+            description:
+              'Your photo has been compressed and is ready for upload.',
+          });
         };
         reader.readAsDataURL(compressedFile);
-
       } catch (error) {
         console.error('Image compression error:', error);
         toast({
           variant: 'destructive',
           title: 'Compression Failed',
-          description: 'Could not compress the image. Please try another one.',
+          description:
+            'Could not compress the image. Please try another one.',
         });
         const reader = new FileReader();
         reader.onloadend = () => {
-            const dataUri = reader.result as string;
-            setPhotoPreview(dataUri);
-            form.setValue('photoDataUri', dataUri);
+          const dataUri = reader.result as string;
+          setPhotoPreview(dataUri);
+          form.setValue('photoDataUri', dataUri);
         };
         reader.readAsDataURL(file);
       }
@@ -184,31 +201,34 @@ export function WasteApplicationForm() {
     const wasteType = form.getValues('wasteType');
 
     if (!photoDataUri || !wasteType) {
-        toast({
-            title: 'Missing Information',
-            description: 'Please select a waste type and upload a photo before verifying.',
-            variant: 'destructive'
-        });
-        return;
+      toast({
+        title: 'Missing Information',
+        description:
+          'Please select a waste type and upload a photo before verifying.',
+        variant: 'destructive',
+      });
+      return;
     }
 
     startVerificationTransition(async () => {
-        setVerificationResult(null);
-        const result = await runWasteVerificationAction({ photoDataUri, wasteType });
-        if (result.success) {
-            setVerificationResult(result.data);
-        } else {
-            toast({
-                title: 'Verification Failed',
-                description: result.error,
-                variant: 'destructive'
-            });
-        }
+      setVerificationResult(null);
+      const result = await runWasteVerificationAction({
+        photoDataUri,
+        wasteType,
+      });
+      if (result.success) {
+        setVerificationResult(result.data);
+      } else {
+        toast({
+          title: 'Verification Failed',
+          description: result.error,
+          variant: 'destructive',
+        });
+      }
     });
-  }
+  };
 
-
- async function onSubmit(values: FormValues) {
+  async function onSubmit(values: FormValues) {
     if (!firestore || !user) {
       toast({
         variant: 'destructive',
@@ -217,68 +237,89 @@ export function WasteApplicationForm() {
       });
       return;
     }
+     if (!verificationResult || !verificationResult.isMatch) {
+      toast({
+        variant: 'destructive',
+        title: 'Submission Blocked',
+        description: 'Please run and pass AI verification before submitting.',
+      });
+      return;
+    }
 
     startSubmitTransition(() => {
-        toast({
-          title: 'Submitting Application...',
-          description: 'Your application is being processed in the background.',
-        });
+      toast({
+        title: 'Submitting Application...',
+        description:
+          'Your application is being processed in the background.',
+      });
 
-        // Fire-and-forget the async operations
-        (async () => {
-            try {
-                let photoUrl = '';
-                if (values.photoDataUri) {
-                    const storage = getStorage();
-                    const storageRef = ref(storage, `waste-photos/${user.uid}/${Date.now()}`);
-                    const snapshot = await uploadString(storageRef, values.photoDataUri, 'data_url');
-                    photoUrl = await getDownloadURL(snapshot.ref);
-                }
+      // Fire-and-forget the async operations
+      (async () => {
+        try {
+          let photoUrl = '';
+          if (values.photoDataUri) {
+            const storage = getStorage();
+            const storageRef = ref(
+              storage,
+              `waste-photos/${user.uid}/${Date.now()}`
+            );
+            const snapshot = await uploadString(
+              storageRef,
+              values.photoDataUri,
+              'data_url'
+            );
+            photoUrl = await getDownloadURL(snapshot.ref);
+          }
 
-                const applicationsCollection = collection(firestore, 'wasteApplications');
-                const applicationData = {
-                  ...values,
-                  photoUrl: photoUrl,
-                  quantity: parseFloat(values.quantity) || 0,
-                  userId: user.uid,
-                  userEmail: user.email,
-                  status: 'submitted' as const,
-                  submissionDate: new Date().toISOString(),
-                };
-                delete (applicationData as any).photoDataUri;
-                
-                await addDocumentNonBlocking(applicationsCollection, applicationData);
+          const applicationsCollection = collection(
+            firestore,
+            'wasteApplications'
+          );
+          const applicationData = {
+            ...values,
+            photoUrl: photoUrl,
+            quantity: parseFloat(values.quantity) || 0,
+            userId: user.uid,
+            userEmail: user.email,
+            status: 'submitted' as const,
+            submissionDate: new Date().toISOString(),
+            isVerified: verificationResult.isMatch,
+            verificationNotes: verificationResult.reason,
+          };
+          delete (applicationData as any).photoDataUri;
 
-                 // This toast will appear in the UI, but it's not awaited
-                 toast({
-                    title: 'Application Submitted Successfully',
-                    description: 'We have received your application.',
-                });
+          await addDocumentNonBlocking(applicationsCollection, applicationData);
 
-            } catch (error: any) {
-                console.error('Background Submission Error:', error);
-                 toast({
-                    variant: 'destructive',
-                    title: 'Background Submission Failed',
-                    description: 'There was an issue saving your application. Please try again.',
-                });
-            }
-        })();
+          // This toast will appear in the UI, but it's not awaited
+          toast({
+            title: 'Application Submitted Successfully',
+            description: 'We have received your application.',
+          });
+        } catch (error: any) {
+          console.error('Background Submission Error:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Background Submission Failed',
+            description:
+              'There was an issue saving your application. Please try again.',
+          });
+        }
+      })();
 
-        // Reset form immediately
-        form.reset();
-        setPhotoPreview(null);
-        setVerificationResult(null);
+      // Reset form immediately
+      form.reset();
+      setPhotoPreview(null);
+      setVerificationResult(null);
     });
   }
-
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="font-headline">New Waste Application</CardTitle>
         <CardDescription>
-          Fill out the form to request waste collection. Use the AI verification tool to ensure accuracy.
+          Fill out the form to request waste collection. Use the AI
+          verification tool to ensure accuracy.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -344,12 +385,13 @@ export function WasteApplicationForm() {
                     </Button>
                   </div>
                   <FormDescription>
-                    Click the pin to get your current location from the browser.
+                    Click the pin to get your current location from the
+                    browser.
                   </FormDescription>
                 </FormItem>
               </div>
               <div className="space-y-4">
-                 <FormField
+                <FormField
                   control={form.control}
                   name="wasteType"
                   render={({ field }) => (
@@ -357,8 +399,8 @@ export function WasteApplicationForm() {
                       <FormLabel>Waste Type</FormLabel>
                       <Select
                         onValueChange={(value) => {
-                            field.onChange(value);
-                            setVerificationResult(null); // Reset on change
+                          field.onChange(value);
+                          setVerificationResult(null); // Reset on change
                         }}
                         value={field.value}
                       >
@@ -368,7 +410,9 @@ export function WasteApplicationForm() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Recyclable">Recyclable</SelectItem>
+                          <SelectItem value="Recyclable">
+                            Recyclable
+                          </SelectItem>
                           <SelectItem value="General Waste">
                             General Waste
                           </SelectItem>
@@ -381,7 +425,7 @@ export function WasteApplicationForm() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="photoDataUri"
@@ -389,59 +433,88 @@ export function WasteApplicationForm() {
                     <FormItem>
                       <FormLabel>Waste Photo</FormLabel>
                       <div className="flex items-center gap-4">
-                          <div className="relative h-24 w-24 rounded-md border flex items-center justify-center bg-muted/50">
-                            {photoPreview ? (
-                              <Image
-                                src={photoPreview}
-                                alt="Waste preview"
-                                fill
-                                objectFit="cover"
-                                className="rounded-md"
-                              />
-                            ) : (
-                              <Camera className="h-8 w-8 text-muted-foreground" />
-                            )}
-                          </div>
-                           <div className='flex-1 space-y-2'>
-                             <Button type="button" asChild variant="outline" className='w-full'>
-                              <label
-                                htmlFor="photo-upload"
-                                className="cursor-pointer"
-                              >
-                                Upload Photo
-                              </label>
-                            </Button>
-                           </div>
-                          <input
-                            id="photo-upload"
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handleFileChange}
-                          />
+                        <div className="relative h-24 w-24 rounded-md border flex items-center justify-center bg-muted/50">
+                          {photoPreview ? (
+                            <Image
+                              src={photoPreview}
+                              alt="Waste preview"
+                              fill
+                              objectFit="cover"
+                              className="rounded-md"
+                            />
+                          ) : (
+                            <Camera className="h-8 w-8 text-muted-foreground" />
+                          )}
                         </div>
+                        <div className="flex-1 space-y-2">
+                          <Button
+                            type="button"
+                            asChild
+                            variant="outline"
+                            className="w-full"
+                          >
+                            <label
+                              htmlFor="photo-upload"
+                              className="cursor-pointer"
+                            >
+                              Upload Photo
+                            </label>
+                          </Button>
+                        </div>
+                        <input
+                          id="photo-upload"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleFileChange}
+                        />
+                      </div>
                       <FormDescription>
-                        GPS data is extracted automatically from photo metadata, if available.
+                        GPS data is extracted automatically from photo
+                        metadata, if available.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 <div className="space-y-2">
-                    <Button type="button" className='w-full' onClick={handleWasteVerification} disabled={isVerificationPending || !watchPhoto || !watchWasteType}>
-                        {isVerificationPending ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : <Sparkles className='mr-2 h-4 w-4' />}
-                        Verify with AI
-                    </Button>
-                    {verificationResult && (
-                        <Alert variant={verificationResult.isMatch ? 'default' : 'destructive'}>
-                            {verificationResult.isMatch ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                            <AlertTitle>{verificationResult.isMatch ? 'Match Confirmed' : 'Potential Mismatch'}</AlertTitle>
-                            <AlertDescription>
-                                {verificationResult.reason}
-                            </AlertDescription>
-                        </Alert>
+                  <Button
+                    type="button"
+                    className="w-full"
+                    onClick={handleWasteVerification}
+                    disabled={
+                      isVerificationPending || !watchPhoto || !watchWasteType
+                    }
+                  >
+                    {isVerificationPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-2 h-4 w-4" />
                     )}
+                    Verify with AI
+                  </Button>
+                  {verificationResult && (
+                    <Alert
+                      variant={
+                        verificationResult.isMatch ? 'default' : 'destructive'
+                      }
+                    >
+                      {verificationResult.isMatch ? (
+                        <CheckCircle className="h-4 w-4" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
+                      <AlertTitle>
+                        {verificationResult.isMatch
+                          ? 'Match Confirmed'
+                          : 'Potential Mismatch'}
+                      </AlertTitle>
+                      <AlertDescription>
+                        {verificationResult.reason}
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
 
                 <FormField
@@ -451,7 +524,11 @@ export function WasteApplicationForm() {
                     <FormItem>
                       <FormLabel>Quantity (kg)</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="e.g., 10" {...field} />
+                        <Input
+                          type="number"
+                          placeholder="e.g., 10"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -477,11 +554,22 @@ export function WasteApplicationForm() {
               )}
             />
 
-            <Button type="submit" disabled={isSubmitPending || !user}>
-              {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={isSubmitPending || !user || !verificationResult?.isMatch}>
+              {isSubmitPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Submit Application
             </Button>
-             {!user && <p className="text-sm text-muted-foreground">You must be logged in to submit an application.</p>}
+            {!user && (
+              <p className="text-sm text-muted-foreground">
+                You must be logged in to submit an application.
+              </p>
+            )}
+             {user && !verificationResult?.isMatch && (
+              <p className="text-sm text-muted-foreground">
+                Please ensure AI verification is successful before submitting.
+              </p>
+            )}
           </form>
         </Form>
       </CardContent>
