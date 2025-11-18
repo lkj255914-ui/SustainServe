@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from './ui/select';
 import { useState, useTransition } from 'react';
-import { Camera, Loader2, MapPin } from 'lucide-react';
+import { Camera, CheckCircle, Loader2, MapPin, Sparkles, XCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
@@ -38,6 +38,11 @@ import { collection } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import imageCompression from 'browser-image-compression';
 import ExifReader from 'exifreader';
+import { runWasteVerificationAction } from '@/app/actions';
+import type { VerifyWasteImageOutput } from '@/ai/flows/verify-waste-image';
+import { cn } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+
 
 const formSchema = z.object({
   departmentId: z.string().min(2, 'Department is required.'),
@@ -55,9 +60,11 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export function WasteApplicationForm() {
-  const [isPending, startTransition] = useTransition();
+  const [isSubmitPending, startSubmitTransition] = useTransition();
+  const [isVerificationPending, startVerificationTransition] = useTransition();
   const [isLocating, setIsLocating] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [verificationResult, setVerificationResult] = useState<VerifyWasteImageOutput | null>(null);
   const { toast } = useToast();
   const firestore = useFirestore();
   const { user } = useUser();
@@ -73,10 +80,14 @@ export function WasteApplicationForm() {
     },
   });
 
+  const watchPhoto = form.watch('photoDataUri');
+  const watchWasteType = form.watch('wasteType');
+
+
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-        
+        setVerificationResult(null); // Reset verification on new photo
         try {
             const tags = await ExifReader.load(file);
             const latitude = tags?.GPSLatitude?.description;
@@ -89,19 +100,9 @@ export function WasteApplicationForm() {
                     title: 'Photo Location Found',
                     description: 'GPS coordinates were extracted from the photo metadata.',
                 });
-            } else {
-                 toast({
-                    title: 'No GPS Data',
-                    description: 'Could not find GPS coordinates in the photo metadata.',
-                });
             }
         } catch (e) {
             console.warn("Could not read EXIF data from photo.", e)
-             toast({
-                variant: 'destructive',
-                title: 'Metadata Error',
-                description: 'Could not read metadata from the uploaded photo.',
-            });
         }
 
       const options = {
@@ -188,12 +189,41 @@ export function WasteApplicationForm() {
       });
     } else {
       toast({
-        variant: 'destructive',
         title: 'No GPS Data Available',
-        description: 'GPS coordinates were not found in the photo metadata.',
+        description: 'Could not find GPS coordinates in the photo metadata.',
+        variant: 'destructive',
       });
     }
   };
+
+  const handleWasteVerification = () => {
+    const photoDataUri = form.getValues('photoDataUri');
+    const wasteType = form.getValues('wasteType');
+
+    if (!photoDataUri || !wasteType) {
+        toast({
+            title: 'Missing Information',
+            description: 'Please select a waste type and upload a photo before verifying.',
+            variant: 'destructive'
+        });
+        return;
+    }
+
+    startVerificationTransition(async () => {
+        setVerificationResult(null);
+        const result = await runWasteVerificationAction({ photoDataUri, wasteType });
+        if (result.success) {
+            setVerificationResult(result.data);
+        } else {
+            toast({
+                title: 'Verification Failed',
+                description: result.error,
+                variant: 'destructive'
+            });
+        }
+    });
+  }
+
 
  async function onSubmit(values: FormValues) {
     if (!firestore || !user) {
@@ -205,70 +235,57 @@ export function WasteApplicationForm() {
       return;
     }
 
-    startTransition(async () => {
-      try {
-        let photoUrl = '';
-        if (values.photoDataUri) {
-          toast({
-            title: 'Uploading Photo...',
-            description: 'Please wait, your photo is being uploaded.',
-          });
-          const storage = getStorage();
-          const storageRef = ref(storage, `waste-photos/${user.uid}/${Date.now()}`);
-          
-          // Non-blocking upload
-          uploadString(storageRef, values.photoDataUri, 'data_url').then(snapshot => {
-            getDownloadURL(snapshot.ref).then(url => {
-              // Note: This happens in the background. The user has already seen the success message.
-              // We could potentially update the document with the URL later if needed,
-              // but for now, we'll send it with the initial data.
-              // To do that, we'd need to change the logic slightly.
-            });
-          });
-        }
-        
-        const applicationsCollection = collection(firestore, 'wasteApplications');
-
-        // To make the UI feel instant, we'll get the download URL first.
-        // For a true "fire-and-forget", we would save the doc and update the URL later.
-        // Let's stick to the slightly slower but more robust method.
-        if (values.photoDataUri) {
-          const storage = getStorage();
-          const storageRef = ref(storage, `waste-photos/${user.uid}/${Date.now()}`);
-          const snapshot = await uploadString(storageRef, values.photoDataUri, 'data_url');
-          photoUrl = await getDownloadURL(snapshot.ref);
-        }
-
-
-        const applicationData = {
-          ...values,
-          photoUrl: photoUrl,
-          quantity: parseFloat(values.quantity) || 0,
-          userId: user.uid,
-          userEmail: user.email,
-          status: 'submitted' as const,
-          submissionDate: new Date().toISOString(),
-        };
-        delete (applicationData as any).photoDataUri;
-        delete (applicationData as any).id; // Ensure no client-side id is sent
-        
-        const docRef = await addDocumentNonBlocking(applicationsCollection, applicationData);
-        
+    startSubmitTransition(() => {
         toast({
-          title: 'Application Submitted',
-          description: 'Your waste application has been received.',
+          title: 'Submitting Application...',
+          description: 'Your application is being processed in the background.',
         });
-        
+
+        // Fire-and-forget the async operations
+        (async () => {
+            try {
+                let photoUrl = '';
+                if (values.photoDataUri) {
+                    const storage = getStorage();
+                    const storageRef = ref(storage, `waste-photos/${user.uid}/${Date.now()}`);
+                    const snapshot = await uploadString(storageRef, values.photoDataUri, 'data_url');
+                    photoUrl = await getDownloadURL(snapshot.ref);
+                }
+
+                const applicationsCollection = collection(firestore, 'wasteApplications');
+                const applicationData = {
+                  ...values,
+                  photoUrl: photoUrl,
+                  quantity: parseFloat(values.quantity) || 0,
+                  userId: user.uid,
+                  userEmail: user.email,
+                  status: 'submitted' as const,
+                  submissionDate: new Date().toISOString(),
+                };
+                delete (applicationData as any).photoDataUri;
+                
+                await addDocumentNonBlocking(applicationsCollection, applicationData);
+
+                 // This toast will appear in the UI, but it's not awaited
+                 toast({
+                    title: 'Application Submitted Successfully',
+                    description: 'We have received your application.',
+                });
+
+            } catch (error: any) {
+                console.error('Background Submission Error:', error);
+                 toast({
+                    variant: 'destructive',
+                    title: 'Background Submission Failed',
+                    description: 'There was an issue saving your application. Please try again.',
+                });
+            }
+        })();
+
+        // Reset form immediately
         form.reset();
         setPhotoPreview(null);
-      } catch (error: any) {
-        console.error('Submission Error:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Submission Failed',
-          description: error.message || 'An unexpected error occurred.',
-        });
-      }
+        setVerificationResult(null);
     });
   }
 
@@ -278,7 +295,7 @@ export function WasteApplicationForm() {
       <CardHeader>
         <CardTitle className="font-headline">New Waste Application</CardTitle>
         <CardDescription>
-          Fill out the form to request waste collection.
+          Fill out the form to request waste collection. Use the AI verification tool to ensure accuracy.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -349,66 +366,17 @@ export function WasteApplicationForm() {
                 </FormItem>
               </div>
               <div className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="photoDataUri"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Waste Photo</FormLabel>
-                      <FormControl>
-                        <div className="flex items-center gap-4">
-                          <div className="relative h-24 w-24 rounded-md border flex items-center justify-center bg-muted/50">
-                            {photoPreview ? (
-                              <Image
-                                src={photoPreview}
-                                alt="Waste preview"
-                                fill
-                                objectFit="cover"
-                                className="rounded-md"
-                              />
-                            ) : (
-                              <Camera className="h-8 w-8 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <Button type="button" asChild variant="outline">
-                              <label
-                                htmlFor="photo-upload"
-                                className="cursor-pointer"
-                              >
-                                Upload Photo
-                              </label>
-                            </Button>
-                            <Button type="button" variant="secondary" onClick={handleShowPhotoLocation} disabled={!photoPreview}>
-                                Show Photo Location
-                            </Button>
-                           </div>
-                          <input
-                            id="photo-upload"
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handleFileChange}
-                          />
-                        </div>
-                      </FormControl>
-                       <FormDescription>
-                        GPS data is extracted automatically from photo metadata, if available.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
+                 <FormField
                   control={form.control}
                   name="wasteType"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Waste Type</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        onValueChange={(value) => {
+                            field.onChange(value);
+                            setVerificationResult(null); // Reset on change
+                        }}
                         value={field.value}
                       >
                         <FormControl>
@@ -430,6 +398,71 @@ export function WasteApplicationForm() {
                     </FormItem>
                   )}
                 />
+                
+                <FormField
+                  control={form.control}
+                  name="photoDataUri"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Waste Photo</FormLabel>
+                      <div className="flex items-center gap-4">
+                          <div className="relative h-24 w-24 rounded-md border flex items-center justify-center bg-muted/50">
+                            {photoPreview ? (
+                              <Image
+                                src={photoPreview}
+                                alt="Waste preview"
+                                fill
+                                objectFit="cover"
+                                className="rounded-md"
+                              />
+                            ) : (
+                              <Camera className="h-8 w-8 text-muted-foreground" />
+                            )}
+                          </div>
+                           <div className='flex-1 space-y-2'>
+                             <Button type="button" asChild variant="outline" className='w-full'>
+                              <label
+                                htmlFor="photo-upload"
+                                className="cursor-pointer"
+                              >
+                                Upload Photo
+                              </label>
+                            </Button>
+                            <Button type="button" variant="secondary" onClick={handleShowPhotoLocation} disabled={!photoPreview} className='w-full'>
+                                Show Photo Location
+                            </Button>
+                           </div>
+                          <input
+                            id="photo-upload"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleFileChange}
+                          />
+                        </div>
+                      <FormDescription>
+                        GPS data is extracted automatically from photo metadata, if available.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="space-y-2">
+                    <Button type="button" className='w-full' onClick={handleWasteVerification} disabled={isVerificationPending || !watchPhoto || !watchWasteType}>
+                        {isVerificationPending ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : <Sparkles className='mr-2 h-4 w-4' />}
+                        Verify with AI
+                    </Button>
+                    {verificationResult && (
+                        <Alert variant={verificationResult.isMatch ? 'default' : 'destructive'}>
+                            {verificationResult.isMatch ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                            <AlertTitle>{verificationResult.isMatch ? 'Match Confirmed' : 'Potential Mismatch'}</AlertTitle>
+                            <AlertDescription>
+                                {verificationResult.reason}
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                </div>
 
                 <FormField
                   control={form.control}
@@ -464,8 +497,8 @@ export function WasteApplicationForm() {
               )}
             />
 
-            <Button type="submit" disabled={isPending || !user}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={isSubmitPending || !user}>
+              {isSubmitPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Application
             </Button>
              {!user && <p className="text-sm text-muted-foreground">You must be logged in to submit an application.</p>}

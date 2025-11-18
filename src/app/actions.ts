@@ -5,6 +5,11 @@ import {
   OptimizeCollectionRoutesInput,
   OptimizeCollectionRoutesOutput,
 } from '@/ai/flows/optimize-collection-routes';
+import {
+    verifyWasteImage,
+    VerifyWasteImageInput,
+    VerifyWasteImageOutput,
+} from '@/ai/flows/verify-waste-image';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { WasteApplication } from '@/lib/types';
@@ -68,4 +73,23 @@ export async function updateApplicationStatusAction(
     console.error('Error updating application status:', error);
     return { success: false, error: error.message || 'Failed to update status.' };
   }
+}
+
+export async function runWasteVerificationAction(
+    input: VerifyWasteImageInput
+): Promise<ActionResult<VerifyWasteImageOutput>> {
+    if (!input.photoDataUri) {
+        return { success: false, error: 'A photo is required for verification.' };
+    }
+    if (!input.wasteType) {
+        return { success: false, error: 'A waste type is required for verification.' };
+    }
+
+    try {
+        const output = await verifyWasteImage(input);
+        return { success: true, data: output };
+    } catch (e: any) {
+        console.error(e);
+        return { success: false, error: e.message || 'An unknown error occurred during verification.' };
+    }
 }
