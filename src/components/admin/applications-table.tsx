@@ -123,6 +123,8 @@ export function ApplicationsTable({
               <TableHead>Waste Type</TableHead>
               <TableHead>Department</TableHead>
               <TableHead className="hidden md:table-cell">Address</TableHead>
+              <TableHead className="hidden lg:table-cell">Live Location</TableHead>
+              <TableHead className="hidden lg:table-cell">Photo Location</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Photo</TableHead>
               <TableHead>Actions</TableHead>
@@ -152,6 +154,16 @@ export function ApplicationsTable({
                 <TableCell>{app.departmentId}</TableCell>
                 <TableCell className="hidden md:table-cell">
                   {app.address}
+                </TableCell>
+                <TableCell className="hidden lg:table-cell">
+                  {app.locationLatitude && app.locationLongitude
+                    ? `${app.locationLatitude.toFixed(4)}, ${app.locationLongitude.toFixed(4)}`
+                    : 'N/A'}
+                </TableCell>
+                 <TableCell className="hidden lg:table-cell">
+                  {app.photoLatitude && app.photoLongitude
+                    ? `${app.photoLatitude.toFixed(4)}, ${app.photoLongitude.toFixed(4)}`
+                    : 'N/A'}
                 </TableCell>
                 <TableCell>{new Date(app.submissionDate).toLocaleDateString()}</TableCell>
                 <TableCell>

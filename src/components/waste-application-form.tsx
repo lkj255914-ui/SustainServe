@@ -33,16 +33,19 @@ import { useState, useTransition } from 'react';
 import { Camera, Loader2, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser, addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useUser, setDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import imageCompression from 'browser-image-compression';
+import ExifReader from 'exifreader';
 
 const formSchema = z.object({
   departmentId: z.string().min(2, 'Department is required.'),
   address: z.string().min(5, 'Address is required.'),
   locationLatitude: z.number().optional(),
   locationLongitude: z.number().optional(),
+  photoLatitude: z.number().optional(),
+  photoLongitude: z.number().optional(),
   wasteType: z.string().min(2, 'Waste type is required.'),
   quantity: z.string().min(1, 'Quantity is required.'),
   photoDataUri: z.string().optional(),
@@ -74,10 +77,27 @@ export function WasteApplicationForm() {
     const file = event.target.files?.[0];
     if (file) {
         
+        try {
+            const tags = await ExifReader.load(file);
+            const lat = tags['GPSLatitude']?.description;
+            const long = tags['GPSLongitude']?.description;
+
+            if(lat && long) {
+                form.setValue('photoLatitude', typeof lat === 'number' ? lat : parseFloat(lat));
+                form.setValue('photoLongitude', typeof long === 'number' ? long : parseFloat(long));
+                 toast({
+                    title: 'Photo Location Found',
+                    description: 'GPS coordinates were extracted from the photo metadata.',
+                });
+            }
+        } catch (e) {
+            console.warn("Could not read EXIF data from photo.", e)
+        }
+
       const options = {
-        maxSizeMB: 1, // (default: 1)
-        maxWidthOrHeight: 1920, // (default: 1920)
-        useWebWorker: true, // (default: true)
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
       };
       
       try {
@@ -106,7 +126,6 @@ export function WasteApplicationForm() {
           title: 'Compression Failed',
           description: 'Could not compress the image. Please try another one.',
         });
-        // Fallback to original file if compression fails
         const reader = new FileReader();
         reader.onloadend = () => {
             const dataUri = reader.result as string;
@@ -127,7 +146,7 @@ export function WasteApplicationForm() {
           form.setValue('locationLongitude', position.coords.longitude);
           toast({
             title: 'Location Acquired',
-            description: 'Latitude and Longitude have been set.',
+            description: 'Your current device location has been set.',
           });
           setIsLocating(false);
         },
@@ -159,7 +178,6 @@ export function WasteApplicationForm() {
       return;
     }
 
-    // Indicate submission has started and immediately give feedback
     startTransition(() => {
       toast({
         title: 'Application Submitted',
@@ -180,31 +198,25 @@ export function WasteApplicationForm() {
       };
       delete (applicationData as any).photoDataUri;
 
-      // Create the document immediately with placeholder photoUrl
       const applicationsCollection = collection(firestore, 'wasteApplications');
       const newDocRef = doc(applicationsCollection, newDocId);
       setDocumentNonBlocking(newDocRef, applicationData, {});
 
-      // Handle photo upload in the background
       if (values.photoDataUri) {
         const storage = getStorage();
         const storageRef = ref(storage, `waste-photos/${user.uid}/${newDocId}`);
         
-        // This part runs in the background
         uploadString(storageRef, values.photoDataUri, 'data_url')
           .then(snapshot => getDownloadURL(snapshot.ref))
           .then(photoUrl => {
-            // Once uploaded, update the document with the real photoUrl
             setDocumentNonBlocking(newDocRef, { photoUrl: photoUrl }, { merge: true });
           })
           .catch(error => {
             console.error("Background photo upload failed:", error);
-            // Optionally update the doc to indicate upload failure
             setDocumentNonBlocking(newDocRef, { photoUrl: 'upload_failed' }, { merge: true });
           });
       }
 
-      // Reset the form immediately
       form.reset();
       setPhotoPreview(null);
     });
@@ -248,8 +260,7 @@ export function WasteApplicationForm() {
                         <Input placeholder="123 Main St, City" {...field} />
                       </FormControl>
                       <FormDescription>
-                        Start typing to get address suggestions (feature coming
-                        soon).
+                        Provide the full address of the waste location.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -257,7 +268,7 @@ export function WasteApplicationForm() {
                 />
 
                 <FormItem>
-                  <FormLabel>Geolocation</FormLabel>
+                  <FormLabel>Live Geolocation</FormLabel>
                   <div className="flex gap-2">
                     <Input
                       placeholder="Latitude"
@@ -273,6 +284,7 @@ export function WasteApplicationForm() {
                       type="button"
                       onClick={handleGetLocation}
                       disabled={isLocating}
+                      variant="outline"
                     >
                       {isLocating ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -282,7 +294,25 @@ export function WasteApplicationForm() {
                     </Button>
                   </div>
                   <FormDescription>
-                    Click the pin to automatically get your current location.
+                    Click the pin to get your current location from the browser.
+                  </FormDescription>
+                </FormItem>
+                 <FormItem>
+                  <FormLabel>Photo Geolocation</FormLabel>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Photo Latitude"
+                      {...form.register('photoLatitude')}
+                      disabled
+                    />
+                    <Input
+                      placeholder="Photo Longitude"
+                      {...form.register('photoLongitude')}
+                      disabled
+                    />
+                  </div>
+                  <FormDescription>
+                    GPS data extracted automatically from photo metadata, if available.
                   </FormDescription>
                 </FormItem>
               </div>
