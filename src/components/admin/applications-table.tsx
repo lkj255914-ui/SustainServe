@@ -132,9 +132,11 @@ export function ApplicationsTable({
                   />
                 </TableHead>
                 <TableHead>ID</TableHead>
+                <TableHead>User Email</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Verified</TableHead>
                 <TableHead>Waste Type</TableHead>
+                <TableHead>Quantity (kg)</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead className="hidden md:table-cell">Address</TableHead>
                 <TableHead className="hidden lg:table-cell">
@@ -167,6 +169,7 @@ export function ApplicationsTable({
                   <TableCell className="font-medium">
                     {app.id.substring(0, 7)}
                   </TableCell>
+                  <TableCell>{app.userEmail}</TableCell>
                   <TableCell>{getStatusBadge(app.status)}</TableCell>
                   <TableCell>
                     <Tooltip>
@@ -187,6 +190,7 @@ export function ApplicationsTable({
                     </Tooltip>
                   </TableCell>
                   <TableCell>{app.wasteType}</TableCell>
+                  <TableCell>{app.quantity}</TableCell>
                   <TableCell>{app.departmentId}</TableCell>
                   <TableCell className="hidden md:table-cell">
                     {app.address}
