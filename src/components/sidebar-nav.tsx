@@ -21,7 +21,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Logo } from './logo';
-import type { User } from '@/lib/auth';
+import type { User } from '@/lib/types';
 
 export function SidebarNav({ user }: { user: User }) {
   const pathname = usePathname();

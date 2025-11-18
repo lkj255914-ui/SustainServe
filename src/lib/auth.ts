@@ -1,12 +1,9 @@
+'use server';
+
 // This is a mock authentication system.
 // In a real application, you would use a proper authentication provider.
 import { cookies } from 'next/headers';
-
-export type User = {
-  name: string;
-  email: string;
-  role: 'user' | 'admin';
-};
+import type { User } from './types';
 
 const users: Omit<User, 'role'>[] = [
   { name: 'Admin User', email: 'jpratap731@gmail.com' },

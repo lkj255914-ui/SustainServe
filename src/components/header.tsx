@@ -19,8 +19,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Logo } from './logo';
-import type { User } from '@/lib/auth';
-import { logout } from '@/lib/auth';
+import type { User } from '@/lib/types';
+import { logout } from '@/lib/auth.client';
 import { useRouter } from 'next/navigation';
 
 export function Header({ user }: { user: User }) {
