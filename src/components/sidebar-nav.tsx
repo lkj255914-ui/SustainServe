@@ -21,10 +21,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Logo } from './logo';
-import type { User } from '@/lib/types';
+import { useUser } from '@/firebase';
 
-export function SidebarNav({ user }: { user: User }) {
+export function SidebarNav() {
   const pathname = usePathname();
+  const { user } = useUser();
 
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -41,7 +42,7 @@ export function SidebarNav({ user }: { user: User }) {
         <div className="flex-1">
           <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
             {navItems.map((item) => {
-              if (item.adminOnly && user.role !== 'admin') {
+              if (item.adminOnly && user?.email !== 'jpratap731@gmail.com') {
                 return null;
               }
               const isActive = pathname === item.href;

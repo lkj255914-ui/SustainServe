@@ -1,3 +1,6 @@
+'use client';
+
+import Image from 'next/image';
 import {
   Table,
   TableBody,
@@ -6,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { WasteApplication } from '@/lib/data';
+import type { WasteApplication } from '@/lib/types';
 import { Badge } from '../ui/badge';
 import {
   Card,
@@ -15,23 +18,63 @@ import {
   CardHeader,
   CardTitle,
 } from '../ui/card';
+import { Checkbox } from '../ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '../ui/dialog';
+import { Button } from '../ui/button';
 
 function getStatusBadge(status: WasteApplication['status']) {
   switch (status) {
-    case 'Pending':
+    case 'submitted':
       return <Badge variant="secondary">Pending</Badge>;
-    case 'Collected':
+    case 'approved':
       return <Badge>Collected</Badge>;
-    case 'Rejected':
+    case 'rejected':
       return <Badge variant="destructive">Rejected</Badge>;
+    default:
+      return <Badge variant="secondary">{status}</Badge>;
   }
 }
 
 export function ApplicationsTable({
   applications,
+  selectedApplications,
+  setSelectedApplications,
 }: {
   applications: WasteApplication[];
+  selectedApplications: WasteApplication[];
+  setSelectedApplications: (applications: WasteApplication[]) => void;
 }) {
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedApplications(applications);
+    } else {
+      setSelectedApplications([]);
+    }
+  };
+
+  const handleSelectRow = (
+    application: WasteApplication,
+    checked: boolean
+  ) => {
+    if (checked) {
+      setSelectedApplications([...selectedApplications, application]);
+    } else {
+      setSelectedApplications(
+        selectedApplications.filter((a) => a.id !== application.id)
+      );
+    }
+  };
+
+  const isAllSelected =
+    applications.length > 0 &&
+    selectedApplications.length === applications.length;
+
   return (
     <Card>
       <CardHeader>
@@ -44,33 +87,80 @@ export function ApplicationsTable({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>
+                <Checkbox
+                  checked={isAllSelected}
+                  onCheckedChange={handleSelectAll}
+                />
+              </TableHead>
               <TableHead>ID</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Waste Type</TableHead>
               <TableHead>Department</TableHead>
-              <TableHead>User</TableHead>
               <TableHead className="hidden md:table-cell">Address</TableHead>
               <TableHead>Date</TableHead>
+              <TableHead>Photo</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {applications.map((app) => (
-              <TableRow key={app.applicationId}>
-                <TableCell className="font-medium">
-                  {app.applicationId}
+              <TableRow
+                key={app.id}
+                data-state={
+                  selectedApplications.some((a) => a.id === app.id)
+                    ? 'selected'
+                    : ''
+                }
+              >
+                <TableCell>
+                  <Checkbox
+                    checked={selectedApplications.some((a) => a.id === app.id)}
+                    onCheckedChange={(checked) =>
+                      handleSelectRow(app, !!checked)
+                    }
+                  />
                 </TableCell>
+                <TableCell className="font-medium">{app.id.substring(0, 7)}</TableCell>
                 <TableCell>{getStatusBadge(app.status)}</TableCell>
                 <TableCell>{app.wasteType}</TableCell>
-                <TableCell>{app.department}</TableCell>
-                <TableCell>{app.user}</TableCell>
+                <TableCell>{app.departmentId}</TableCell>
                 <TableCell className="hidden md:table-cell">
                   {app.address}
                 </TableCell>
-                <TableCell>{app.submissionDate}</TableCell>
+                <TableCell>{new Date(app.submissionDate).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  {app.photoUrl && (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          View
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Waste Photo</DialogTitle>
+                        </DialogHeader>
+                        <div className="relative h-96 w-full">
+                           <Image
+                            src={app.photoUrl}
+                            alt="Waste"
+                            fill
+                            className="object-contain rounded-md"
+                          />
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        {applications.length === 0 && (
+            <div className="text-center py-10 text-muted-foreground">
+                No applications found.
+            </div>
+        )}
       </CardContent>
     </Card>
   );

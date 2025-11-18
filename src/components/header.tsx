@@ -1,13 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import {
-  Home,
-  Menu,
-  PlusCircle,
-  Shield,
-  CircleUser,
-} from 'lucide-react';
+import { Home, Menu, PlusCircle, Shield, CircleUser, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -19,14 +13,30 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Logo } from './logo';
-import type { User } from '@/lib/types';
+import { useAuth, useUser } from '@/firebase';
+import { Skeleton } from './ui/skeleton';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
-export function Header({ user }: { user: User }) {
+export function Header() {
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOut(auth);
+    router.push('/');
+  };
 
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: '/apply', label: 'New Application', icon: PlusCircle },
-    { href: '/admin', label: 'Admin', icon: Shield, adminOnly: true },
+    {
+      href: '/admin',
+      label: 'Admin',
+      icon: Shield,
+      adminOnly: true,
+    },
   ];
 
   return (
@@ -41,10 +51,10 @@ export function Header({ user }: { user: User }) {
         <SheetContent side="left" className="flex flex-col">
           <nav className="grid gap-2 text-lg font-medium">
             <div className="mb-4">
-                <Logo />
+              <Logo />
             </div>
             {navItems.map((item) => {
-              if (item.adminOnly && user.role !== 'admin') {
+              if (item.adminOnly && user?.email !== 'jpratap731@gmail.com') {
                 return null;
               }
               return (
@@ -64,18 +74,35 @@ export function Header({ user }: { user: User }) {
       <div className="w-full flex-1">
         {/* Can add a search bar here if needed */}
       </div>
-       <DropdownMenu>
+      <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="secondary" size="icon" className="rounded-full">
-            <CircleUser className="h-5 w-5" />
+            {isUserLoading ? (
+              <Skeleton className="h-5 w-5 rounded-full" />
+            ) : (
+              <CircleUser className="h-5 w-5" />
+            )}
             <span className="sr-only">Toggle user menu</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuLabel>{user.name}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>Settings</DropdownMenuItem>
-          <DropdownMenuItem>Support</DropdownMenuItem>
+          {isUserLoading ? (
+            <DropdownMenuLabel>Loading...</DropdownMenuLabel>
+          ) : user ? (
+            <>
+              <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem>Support</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </>
+          ) : (
+             <DropdownMenuLabel>Not Signed In</DropdownMenuLabel>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </header>

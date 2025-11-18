@@ -13,7 +13,7 @@ import { useState, useTransition } from 'react';
 import type { OptimizeCollectionRoutesOutput } from '@/ai/flows/optimize-collection-routes';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Truck } from 'lucide-react';
-import { WasteApplication } from '@/lib/data';
+import type { WasteApplication } from '@/lib/types';
 import { Separator } from '../ui/separator';
 
 export function RouteOptimizer({
@@ -95,7 +95,7 @@ export function RouteOptimizer({
                       {route.stops.map((stopId) => (
                         <li key={stopId}>
                           {
-                            applications.find((a) => a.applicationId === stopId)
+                            applications.find((a) => a.id === stopId)
                               ?.address
                           }{' '}
                           ({stopId})

@@ -30,35 +30,44 @@ import {
   SelectValue,
 } from './ui/select';
 import { useState, useTransition } from 'react';
-import { submitWasteApplicationAction } from '@/app/actions';
 import { Camera, Loader2, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth, useFirestore, useUser } from '@/firebase';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, serverTimestamp } from 'firebase/firestore';
+import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 
 const formSchema = z.object({
-  department: z.string().min(2, 'Department is required.'),
+  departmentId: z.string().min(2, 'Department is required.'),
   address: z.string().min(5, 'Address is required.'),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
+  locationLatitude: z.number().optional(),
+  locationLongitude: z.number().optional(),
   wasteType: z.string().min(2, 'Waste type is required.'),
   quantity: z.string().min(1, 'Quantity is required.'),
   photoDataUri: z.string().optional(),
-  details: z.string().optional(),
+  notes: z.string().optional(),
 });
+
+type FormValues = z.infer<typeof formSchema>;
 
 export function WasteApplicationForm() {
   const [isPending, startTransition] = useTransition();
   const [isLocating, setIsLocating] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const { toast } = useToast();
+  const firestore = useFirestore();
+  const auth = useAuth();
+  const { user } = useUser();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      department: '',
+      departmentId: '',
       address: '',
       wasteType: '',
       quantity: '',
+      notes: '',
     },
   });
 
@@ -74,44 +83,86 @@ export function WasteApplicationForm() {
       reader.readAsDataURL(file);
     }
   };
-  
+
   const handleGetLocation = () => {
     if (navigator.geolocation) {
       setIsLocating(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          form.setValue('latitude', position.coords.latitude);
-          form.setValue('longitude', position.coords.longitude);
-          toast({ title: "Location Acquired", description: "Latitude and Longitude have been set." });
+          form.setValue('locationLatitude', position.coords.latitude);
+          form.setValue('locationLongitude', position.coords.longitude);
+          toast({
+            title: 'Location Acquired',
+            description: 'Latitude and Longitude have been set.',
+          });
           setIsLocating(false);
         },
         (error) => {
-          toast({ variant: "destructive", title: "Location Error", description: error.message });
+          toast({
+            variant: 'destructive',
+            title: 'Location Error',
+            description: error.message,
+          });
           setIsLocating(false);
         }
       );
     } else {
-      toast({ variant: "destructive", title: "Geolocation not supported", description: "Your browser does not support geolocation." });
+      toast({
+        variant: 'destructive',
+        title: 'Geolocation not supported',
+        description: 'Your browser does not support geolocation.',
+      });
     }
   };
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormValues) {
+    if (!firestore || !auth.currentUser) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Firestore not available. Please try again later.',
+      });
+      return;
+    }
+    
     startTransition(async () => {
-        const result = await submitWasteApplicationAction(values);
-        if(result.success) {
-            toast({
-                title: "Application Submitted",
-                description: "Your waste application has been successfully submitted.",
-            });
-            form.reset();
-            setPhotoPreview(null);
-        } else {
-            toast({
-                variant: "destructive",
-                title: "Submission Failed",
-                description: result.error,
-            });
+      try {
+        let photoUrl = '';
+        if (values.photoDataUri) {
+          const storage = getStorage();
+          const storageRef = ref(storage, `waste-photos/${auth.currentUser?.uid}/${Date.now()}`);
+          const snapshot = await uploadString(storageRef, values.photoDataUri, 'data_url');
+          photoUrl = await getDownloadURL(snapshot.ref);
         }
+
+        const applicationData = {
+          ...values,
+          photoUrl: photoUrl || '',
+          quantity: parseFloat(values.quantity) || 0,
+          userId: auth.currentUser.uid,
+          userEmail: auth.currentUser.email,
+          status: 'submitted',
+          submissionDate: new Date().toISOString(),
+        };
+        
+        const docRef = await addDocumentNonBlocking(collection(firestore, 'wasteApplications'), applicationData);
+        
+        toast({
+          title: 'Application Submitted',
+          description: 'Your waste application has been successfully submitted.',
+        });
+        
+        form.reset();
+        setPhotoPreview(null);
+
+      } catch (error) {
+        console.error('Submission Error:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Submission Failed',
+          description: 'An unexpected error occurred.',
+        });
+      }
     });
   }
 
@@ -128,9 +179,9 @@ export function WasteApplicationForm() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
-                 <FormField
+                <FormField
                   control={form.control}
-                  name="department"
+                  name="departmentId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Department</FormLabel>
@@ -141,7 +192,7 @@ export function WasteApplicationForm() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="address"
@@ -151,24 +202,44 @@ export function WasteApplicationForm() {
                       <FormControl>
                         <Input placeholder="123 Main St, City" {...field} />
                       </FormControl>
-                       <FormDescription>Start typing to get address suggestions (feature coming soon).</FormDescription>
+                      <FormDescription>
+                        Start typing to get address suggestions (feature coming
+                        soon).
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
                 <FormItem>
-                    <FormLabel>Geolocation</FormLabel>
-                    <div className="flex gap-2">
-                        <Input placeholder="Latitude" {...form.register("latitude")} disabled/>
-                        <Input placeholder="Longitude" {...form.register("longitude")} disabled/>
-                        <Button type="button" onClick={handleGetLocation} disabled={isLocating}>
-                            {isLocating ? <Loader2 className="h-4 w-4 animate-spin"/> : <MapPin className="h-4 w-4"/>}
-                        </Button>
-                    </div>
-                    <FormDescription>Click the pin to automatically get your current location.</FormDescription>
+                  <FormLabel>Geolocation</FormLabel>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Latitude"
+                      {...form.register('locationLatitude')}
+                      disabled
+                    />
+                    <Input
+                      placeholder="Longitude"
+                      {...form.register('locationLongitude')}
+                      disabled
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleGetLocation}
+                      disabled={isLocating}
+                    >
+                      {isLocating ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MapPin className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <FormDescription>
+                    Click the pin to automatically get your current location.
+                  </FormDescription>
                 </FormItem>
-
               </div>
               <div className="space-y-4">
                 <FormField
@@ -179,49 +250,70 @@ export function WasteApplicationForm() {
                       <FormLabel>Waste Photo</FormLabel>
                       <FormControl>
                         <div className="flex items-center gap-4">
-                           <div className="relative h-24 w-24 rounded-md border flex items-center justify-center bg-muted/50">
+                          <div className="relative h-24 w-24 rounded-md border flex items-center justify-center bg-muted/50">
                             {photoPreview ? (
-                                <Image src={photoPreview} alt="Waste preview" layout="fill" objectFit="cover" className="rounded-md" />
+                              <Image
+                                src={photoPreview}
+                                alt="Waste preview"
+                                fill
+                                objectFit="cover"
+                                className="rounded-md"
+                              />
                             ) : (
-                                <Camera className="h-8 w-8 text-muted-foreground" />
+                              <Camera className="h-8 w-8 text-muted-foreground" />
                             )}
-                           </div>
-                            <Button type="button" asChild variant="outline">
-                                <label htmlFor="photo-upload" className="cursor-pointer">
-                                    Upload Photo
-                                </label>
-                            </Button>
-                            <input id="photo-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                          </div>
+                          <Button type="button" asChild variant="outline">
+                            <label
+                              htmlFor="photo-upload"
+                              className="cursor-pointer"
+                            >
+                              Upload Photo
+                            </label>
+                          </Button>
+                          <input
+                            id="photo-upload"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleFileChange}
+                          />
                         </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
-                 <FormField
-                    control={form.control}
-                    name="wasteType"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Waste Type</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a waste type" />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                <SelectItem value="Recyclable">Recyclable</SelectItem>
-                                <SelectItem value="General Waste">General Waste</SelectItem>
-                                <SelectItem value="Organic">Organic</SelectItem>
-                                <SelectItem value="Hazardous">Hazardous</SelectItem>
-                                <SelectItem value="E-Waste">E-Waste</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
+
+                <FormField
+                  control={form.control}
+                  name="wasteType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Waste Type</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a waste type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Recyclable">Recyclable</SelectItem>
+                          <SelectItem value="General Waste">
+                            General Waste
+                          </SelectItem>
+                          <SelectItem value="Organic">Organic</SelectItem>
+                          <SelectItem value="Hazardous">Hazardous</SelectItem>
+                          <SelectItem value="E-Waste">E-Waste</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
 
                 <FormField
@@ -229,21 +321,20 @@ export function WasteApplicationForm() {
                   name="quantity"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Quantity</FormLabel>
+                      <FormLabel>Quantity (kg)</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., 10 kg, 2 bags" {...field} />
+                        <Input type="number" placeholder="e.g., 10" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
               </div>
             </div>
 
             <FormField
               control={form.control}
-              name="details"
+              name="notes"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Additional Details (Optional)</FormLabel>
@@ -258,10 +349,11 @@ export function WasteApplicationForm() {
               )}
             />
 
-            <Button type="submit" disabled={isPending}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Submit Application
+            <Button type="submit" disabled={isPending || !user}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Submit Application
             </Button>
+             {!user && <p className="text-sm text-muted-foreground">You must be logged in to submit an application.</p>}
           </form>
         </Form>
       </CardContent>
