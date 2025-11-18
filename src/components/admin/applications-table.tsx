@@ -140,9 +140,6 @@ export function ApplicationsTable({
                 <TableHead className="hidden lg:table-cell">
                   Live Location
                 </TableHead>
-                <TableHead className="hidden lg:table-cell">
-                  Photo Location
-                </TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -199,13 +196,6 @@ export function ApplicationsTable({
                       ? `${app.locationLatitude.toFixed(
                           4
                         )}, ${app.locationLongitude.toFixed(4)}`
-                      : 'N/A'}
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell">
-                    {app.photoLatitude && app.photoLongitude
-                      ? `${app.photoLatitude.toFixed(
-                          4
-                        )}, ${app.photoLongitude.toFixed(4)}`
                       : 'N/A'}
                   </TableCell>
                   <TableCell>

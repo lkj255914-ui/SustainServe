@@ -48,7 +48,6 @@ import {
   uploadString,
   getDownloadURL,
 } from 'firebase/storage';
-import ExifReader from 'exifreader';
 import { runWasteVerificationAction } from '@/app/actions';
 import type { VerifyWasteImageOutput } from '@/ai/flows/verify-waste-image';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -58,8 +57,6 @@ const formSchema = z.object({
   address: z.string().min(5, 'Address is required.'),
   locationLatitude: z.number().optional(),
   locationLongitude: z.number().optional(),
-  photoLatitude: z.number().optional(),
-  photoLongitude: z.number().optional(),
   wasteType: z.string().min(2, 'Waste type is required.'),
   quantity: z.string().min(1, 'Quantity is required.'),
   photoDataUri: z.string().optional(),
@@ -99,33 +96,7 @@ export function WasteApplicationForm() {
     const file = event.target.files?.[0];
     if (file) {
       setVerificationResult(null); // Reset verification on new photo
-      try {
-        const tags = await ExifReader.load(file);
-        const latitude = tags?.GPSLatitude?.description;
-        const longitude = tags?.GPSLongitude?.description;
-        if (latitude && longitude) {
-            form.setValue('photoLatitude', latitude as number);
-            form.setValue('photoLongitude', longitude as number);
-            toast({
-                title: 'Photo Location Found',
-                description: 'GPS coordinates were extracted from the photo metadata.',
-            });
-        } else {
-            toast({
-                title: 'Photo Location Not Found',
-                description: 'No GPS coordinates were found in the photo metadata.',
-                variant: 'destructive',
-            });
-        }
-      } catch (e) {
-        console.warn('Could not read EXIF data from photo.', e);
-         toast({
-            title: 'Metadata Error',
-            description: 'Could not read location data from the photo.',
-            variant: 'destructive',
-        });
-      }
-
+      
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUri = reader.result as string;
@@ -440,10 +411,6 @@ export function WasteApplicationForm() {
                           onChange={handleFileChange}
                         />
                       </div>
-                      <FormDescription>
-                        GPS data is extracted automatically from photo
-                        metadata, if available.
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -14,8 +14,6 @@ export type WasteApplication = {
   quantity: number;
   locationLongitude?: number;
   locationLatitude?: number;
-  photoLatitude?: number;
-  photoLongitude?: number;
   photoUrl?: string;
   address: string;
   status: 'submitted' | 'approved' | 'rejected';
