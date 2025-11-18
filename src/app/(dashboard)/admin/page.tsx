@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useCollection } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import { collection, query, orderBy } from 'firebase/firestore';
 import { useFirestore, useUser, useMemoFirebase } from '@/firebase/provider';
 import { ApplicationsTable } from '@/components/admin/applications-table';
 import { RouteOptimizer } from '@/components/admin/route-optimizer';
@@ -16,7 +16,13 @@ export default function AdminPage() {
   const firestore = useFirestore();
 
   const applicationsQuery = useMemoFirebase(
-    () => (firestore ? query(collection(firestore, 'wasteApplications')) : null),
+    () =>
+      firestore
+        ? query(
+            collection(firestore, 'wasteApplications'),
+            orderBy('submissionDate', 'desc')
+          )
+        : null,
     [firestore]
   );
   const {
@@ -51,9 +57,9 @@ export default function AdminPage() {
       </div>
     );
   }
-  
+
   if (error) {
-    return <div>Error loading applications: {error.message}</div>
+    return <div>Error loading applications: {error.message}</div>;
   }
 
   const pendingApplications =
