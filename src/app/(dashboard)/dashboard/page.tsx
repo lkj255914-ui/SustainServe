@@ -27,9 +27,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { WasteApplication } from '@/lib/types';
-import { useCollection, useFirestore, useUser } from '@/firebase';
+import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import { useMemo } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function getStatusBadge(status: WasteApplication['status']) {
@@ -49,7 +48,7 @@ export default function Dashboard() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
-  const userApplicationsQuery = useMemo(() => {
+  const userApplicationsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return query(
       collection(firestore, 'wasteApplications'),

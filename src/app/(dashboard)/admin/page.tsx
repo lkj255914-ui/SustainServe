@@ -1,20 +1,21 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useCollection } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
-import { useFirestore, useUser } from '@/firebase/provider';
+import { useFirestore, useUser, useMemoFirebase } from '@/firebase/provider';
 import { ApplicationsTable } from '@/components/admin/applications-table';
 import { RouteOptimizer } from '@/components/admin/route-optimizer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { WasteApplication } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useState } from 'react';
 
 export default function AdminPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
-  const applicationsQuery = useMemo(
+  const applicationsQuery = useMemoFirebase(
     () => (firestore ? query(collection(firestore, 'wasteApplications')) : null),
     [firestore]
   );
@@ -56,7 +57,7 @@ export default function AdminPage() {
   }
 
   const pendingApplications =
-    applications?.filter((app) => app.status === 'Pending') || [];
+    applications?.filter((app) => app.status === 'submitted') || [];
 
   return (
     <div className="animate-in fade-in-0">
