@@ -179,6 +179,23 @@ export function WasteApplicationForm() {
     }
   };
 
+  const handleShowPhotoLocation = () => {
+    const lat = form.getValues('photoLatitude');
+    const lng = form.getValues('photoLongitude');
+    if (lat && lng) {
+      toast({
+        title: 'Photo GPS Coordinates',
+        description: `Latitude: ${lat.toFixed(6)}, Longitude: ${lng.toFixed(6)}`,
+      });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'No GPS Data Available',
+        description: 'GPS coordinates were not found in the photo metadata.',
+      });
+    }
+  };
+
  async function onSubmit(values: FormValues) {
     if (!firestore || !user) {
       toast({
@@ -354,14 +371,19 @@ export function WasteApplicationForm() {
                               <Camera className="h-8 w-8 text-muted-foreground" />
                             )}
                           </div>
-                          <Button type="button" asChild variant="outline">
-                            <label
-                              htmlFor="photo-upload"
-                              className="cursor-pointer"
-                            >
-                              Upload Photo
-                            </label>
-                          </Button>
+                          <div className="flex flex-col gap-2">
+                            <Button type="button" asChild variant="outline">
+                              <label
+                                htmlFor="photo-upload"
+                                className="cursor-pointer"
+                              >
+                                Upload Photo
+                              </label>
+                            </Button>
+                            <Button type="button" variant="secondary" onClick={handleShowPhotoLocation} disabled={!photoPreview}>
+                                Show Photo Location
+                            </Button>
+                           </div>
                           <input
                             id="photo-upload"
                             type="file"
@@ -371,30 +393,14 @@ export function WasteApplicationForm() {
                           />
                         </div>
                       </FormControl>
+                       <FormDescription>
+                        GPS data is extracted automatically from photo metadata, if available.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                 <FormItem>
-                    <FormLabel>Photo Geolocation</FormLabel>
-                      <div className="flex gap-2">
-                          <Input
-                          placeholder="Photo Latitude"
-                          {...form.register('photoLatitude')}
-                          value={form.getValues('photoLatitude') ?? ''}
-                          disabled
-                          />
-                          <Input
-                              placeholder="Photo Longitude"
-                              {...form.register('photoLongitude')}
-                              value={form.getValues('photoLongitude') ?? ''}
-                              disabled
-                          />
-                      </div>
-                    <FormDescription>
-                      GPS data extracted automatically from photo metadata, if available.
-                    </FormDescription>
-                  </FormItem>
+                
                 <FormField
                   control={form.control}
                   name="wasteType"
@@ -470,7 +476,3 @@ export function WasteApplicationForm() {
     </Card>
   );
 }
-
-    
-
-    
