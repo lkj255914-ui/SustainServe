@@ -33,7 +33,7 @@ import { useState, useTransition } from 'react';
 import { Camera, Loader2, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useUser, addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import imageCompression from 'browser-image-compression';
@@ -159,56 +159,54 @@ export function WasteApplicationForm() {
       return;
     }
 
-    startTransition(async () => {
-      try {
-        let photoUrl = '';
-        const newDocId = doc(collection(firestore, 'wasteApplications')).id;
+    // Indicate submission has started and immediately give feedback
+    startTransition(() => {
+      toast({
+        title: 'Application Submitted',
+        description: 'Your waste application has been received and is being processed.',
+      });
+      
+      const newDocId = doc(collection(firestore, 'wasteApplications')).id;
 
-        if (values.photoDataUri) {
-          const storage = getStorage();
-          const storageRef = ref(storage, `waste-photos/${user.uid}/${newDocId}`);
-          
-          toast({
-            title: 'Uploading Photo...',
-            description: 'This may take a moment depending on your connection.',
-          });
+      const applicationData = {
+        ...values,
+        id: newDocId,
+        photoUrl: '', // Start with an empty URL
+        quantity: parseFloat(values.quantity) || 0,
+        userId: user.uid,
+        userEmail: user.email,
+        status: 'submitted' as const,
+        submissionDate: new Date().toISOString(),
+      };
+      delete (applicationData as any).photoDataUri;
 
-          const snapshot = await uploadString(storageRef, values.photoDataUri, 'data_url');
-          photoUrl = await getDownloadURL(snapshot.ref);
-        }
+      // Create the document immediately with placeholder photoUrl
+      const applicationsCollection = collection(firestore, 'wasteApplications');
+      const newDocRef = doc(applicationsCollection, newDocId);
+      setDocumentNonBlocking(newDocRef, applicationData, {});
 
-        const applicationData = {
-          ...values,
-          id: newDocId,
-          photoUrl: photoUrl,
-          quantity: parseFloat(values.quantity) || 0,
-          userId: user.uid,
-          userEmail: user.email,
-          status: 'submitted' as const,
-          submissionDate: new Date().toISOString(),
-        };
-        delete (applicationData as any).photoDataUri;
-
-        const applicationsCollection = collection(firestore, 'wasteApplications');
-        const newDocRef = doc(applicationsCollection, newDocId);
+      // Handle photo upload in the background
+      if (values.photoDataUri) {
+        const storage = getStorage();
+        const storageRef = ref(storage, `waste-photos/${user.uid}/${newDocId}`);
         
-        await addDocumentNonBlocking(applicationsCollection, applicationData);
-
-        toast({
-          title: 'Application Submitted',
-          description: 'Your waste application has been received.',
-        });
-
-        form.reset();
-        setPhotoPreview(null);
-      } catch (error: any) {
-        console.error('Submission Error:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Submission Failed',
-          description: error.message || 'An unexpected error occurred.',
-        });
+        // This part runs in the background
+        uploadString(storageRef, values.photoDataUri, 'data_url')
+          .then(snapshot => getDownloadURL(snapshot.ref))
+          .then(photoUrl => {
+            // Once uploaded, update the document with the real photoUrl
+            setDocumentNonBlocking(newDocRef, { photoUrl: photoUrl }, { merge: true });
+          })
+          .catch(error => {
+            console.error("Background photo upload failed:", error);
+            // Optionally update the doc to indicate upload failure
+            setDocumentNonBlocking(newDocRef, { photoUrl: 'upload_failed' }, { merge: true });
+          });
       }
+
+      // Reset the form immediately
+      form.reset();
+      setPhotoPreview(null);
     });
   }
 
