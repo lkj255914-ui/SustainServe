@@ -40,8 +40,8 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
+import { addDoc, collection } from 'firebase/firestore';
 import {
   getStorage,
   ref,
@@ -51,6 +51,7 @@ import {
 import { runWasteVerificationAction } from '@/app/actions';
 import type { VerifyWasteImageOutput } from '@/ai/flows/verify-waste-image';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   departmentId: z.string().min(2, 'Department is required.'),
@@ -66,7 +67,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export function WasteApplicationForm() {
-  const [isSubmitPending, startSubmitTransition] = useTransition();
+  const [isSubmitPending, setIsSubmitPending] = useState(false);
   const [isVerificationPending, startVerificationTransition] = useTransition();
   const [isLocating, setIsLocating] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -75,6 +76,7 @@ export function WasteApplicationForm() {
   const { toast } = useToast();
   const firestore = useFirestore();
   const { user } = useUser();
+  const router = useRouter();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -188,71 +190,68 @@ export function WasteApplicationForm() {
       return;
     }
 
-    startSubmitTransition(() => {
+    setIsSubmitPending(true);
+
+    try {
+      let photoUrl = '';
+      if (values.photoDataUri) {
+        const storage = getStorage();
+        const storageRef = ref(
+          storage,
+          `waste-photos/${user.uid}/${Date.now()}`
+        );
+        const snapshot = await uploadString(
+          storageRef,
+          values.photoDataUri,
+          'data_url'
+        );
+        photoUrl = await getDownloadURL(snapshot.ref);
+      }
+
+      const applicationsCollection = collection(
+        firestore,
+        'wasteApplications'
+      );
+      const applicationData = {
+        ...values,
+        photoUrl: photoUrl,
+        quantity: parseFloat(values.quantity) || 0,
+        userId: user.uid,
+        userEmail: user.email,
+        status: 'submitted' as const,
+        submissionDate: new Date().toISOString(),
+        isVerified: verificationResult.isMatch,
+        verificationNotes: verificationResult.reason,
+      };
+      // We don't want to save the base64 string to Firestore
+      delete (applicationData as any).photoDataUri;
+
+      await addDoc(applicationsCollection, applicationData);
+
       toast({
-        title: 'Submitting Application...',
-        description:
-          'Your application is being processed in the background.',
+        title: 'Application Submitted Successfully',
+        description: 'We have received your application. You will be redirected shortly.',
       });
 
-      // Fire-and-forget the async operations
-      (async () => {
-        try {
-          let photoUrl = '';
-          if (values.photoDataUri) {
-            const storage = getStorage();
-            const storageRef = ref(
-              storage,
-              `waste-photos/${user.uid}/${Date.now()}`
-            );
-            const snapshot = await uploadString(
-              storageRef,
-              values.photoDataUri,
-              'data_url'
-            );
-            photoUrl = await getDownloadURL(snapshot.ref);
-          }
-
-          const applicationsCollection = collection(
-            firestore,
-            'wasteApplications'
-          );
-          const applicationData = {
-            ...values,
-            photoUrl: photoUrl,
-            quantity: parseFloat(values.quantity) || 0,
-            userId: user.uid,
-            userEmail: user.email,
-            status: 'submitted' as const,
-            submissionDate: new Date().toISOString(),
-            isVerified: verificationResult.isMatch,
-            verificationNotes: verificationResult.reason,
-          };
-          delete (applicationData as any).photoDataUri;
-
-          await addDocumentNonBlocking(applicationsCollection, applicationData);
-
-          // This toast will appear in the UI, but it's not awaited
-          toast({
-            title: 'Application Submitted Successfully',
-            description: 'We have received your application.',
-          });
-        } catch (error: any) {
-          console.error('Background Submission Error:', error);
-          toast({
-            variant: 'destructive',
-            title: 'Background Submission Failed',
-            description:
-              'There was an issue saving your application. Please try again.',
-          });
-        }
-      })();
-
-      // Reset form immediately
+      // Reset form and state after successful submission
       form.reset();
       setPhotoPreview(null);
       setVerificationResult(null);
-    });
+
+      // Redirect to dashboard after a short delay
+      setTimeout(() => router.push('/dashboard'), 2000);
+
+    } catch (error: any) {
+      console.error('Submission Error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Submission Failed',
+        description:
+          error.message || 'There was an issue saving your application. Please try again.',
+      });
+    } finally {
+        setIsSubmitPending(false);
+    }
   }
 
   return (
