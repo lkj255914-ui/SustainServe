@@ -34,6 +34,11 @@ export default function AdminPage() {
   const [selectedApplications, setSelectedApplications] = useState<
     WasteApplication[]
   >([]);
+    
+  const pendingApplications = useMemo(
+    () => applications?.filter((app) => app.status === 'submitted') || [],
+    [applications]
+  );
 
   if (isUserLoading || isLoadingApplications) {
     return (
@@ -61,9 +66,6 @@ export default function AdminPage() {
   if (error) {
     return <div>Error loading applications: {error.message}</div>;
   }
-
-  const pendingApplications =
-    applications?.filter((app) => app.status === 'submitted') || [];
 
   return (
     <div className="animate-in fade-in-0">
