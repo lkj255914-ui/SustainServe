@@ -1,0 +1,161 @@
+{
+  "entities": {
+    "WasteApplication": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WasteApplication",
+      "type": "object",
+      "description": "Represents a waste application submitted by a department user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the WasteApplication entity."
+        },
+        "departmentId": {
+          "type": "string",
+          "description": "Reference to Department. (Relationship: Department 1:N WasteApplication)"
+        },
+        "submissionDate": {
+          "type": "string",
+          "description": "The date and time when the waste application was submitted.",
+          "format": "date-time"
+        },
+        "wasteType": {
+          "type": "string",
+          "description": "The type of waste being reported."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "The quantity of waste being reported."
+        },
+        "locationLongitude": {
+          "type": "number",
+          "description": "Longitude of the waste location."
+        },
+        "locationLatitude": {
+          "type": "number",
+          "description": "Latitude of the waste location."
+        },
+        "photoUrls": {
+          "type": "array",
+          "description": "URLs of the photos uploaded for the waste application.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "address": {
+          "type": "string",
+          "description": "Address of the waste location."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the waste application (e.g., submitted, approved, rejected)."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Notes associated with the application"
+        }
+      },
+      "required": [
+        "id",
+        "departmentId",
+        "submissionDate",
+        "wasteType",
+        "quantity",
+        "locationLongitude",
+        "locationLatitude",
+        "photoUrls",
+        "address",
+        "status"
+      ]
+    },
+    "Department": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Department",
+      "type": "object",
+      "description": "Represents a department submitting waste applications.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Department entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the department."
+        },
+        "contactEmail": {
+          "type": "string",
+          "description": "Email address of the department contact.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "contactEmail"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/departments/{departmentId}",
+        "definition": {
+          "entityName": "Department",
+          "schema": {
+            "$ref": "#/backend/entities/Department"
+          },
+          "description": "Stores department information. Each department has a unique ID.",
+          "params": [
+            {
+              "name": "departmentId",
+              "description": "Unique identifier for the department."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/departments/{departmentId}/wasteApplications/{wasteApplicationId}",
+        "definition": {
+          "entityName": "WasteApplication",
+          "schema": {
+            "$ref": "#/backend/entities/WasteApplication"
+          },
+          "description": "Stores waste applications submitted by each department. Includes denormalized 'departmentId' for authorization independence.",
+          "params": [
+            {
+              "name": "departmentId",
+              "description": "Unique identifier for the department."
+            },
+            {
+              "name": "wasteApplicationId",
+              "description": "Unique identifier for the waste application."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{uid}",
+        "definition": {
+          "entityName": "admin_role",
+          "schema": {
+            "$ref": "#/backend/entities/WasteApplication"
+          },
+          "description": "Documents in this collection represent admin users. Existence of a document indicates admin role.",
+          "params": [
+            {
+              "name": "uid",
+              "description": "User ID of the admin user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the WasteWise application, focusing on secure access and efficient data retrieval. It incorporates key principles such as Authorization Independence via Denormalization and Structural Segregation. The structure uses hierarchical paths for user-owned data (Department 1:N WasteApplication relationship) and a separate collection for admin-managed data.  Waste application data includes denormalized 'departmentId' to avoid hierarchical dependencies when querying applications and enforcing security rules. Segregation into separate collections for applications and departments simplifies security rules by ensuring homogeneous security postures within each collection. This design also takes into account the requirement to allow admin users to view and manage all waste applications. The design supports QAPs because all documents in the WasteApplications collection share the same security requirements and authorization checks are based on the denormalized `departmentId` field and the admin role."
+  }
+}
