@@ -144,7 +144,6 @@ export function ApplicationsTable({
                   Photo Location
                 </TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead>Photo</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -211,30 +210,6 @@ export function ApplicationsTable({
                   </TableCell>
                   <TableCell>
                     {new Date(app.submissionDate).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    {app.photoUrl && (
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            View
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Waste Photo</DialogTitle>
-                          </DialogHeader>
-                          <div className="relative h-96 w-full">
-                            <Image
-                              src={app.photoUrl}
-                              alt="Waste"
-                              fill
-                              className="object-contain rounded-md"
-                            />
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    )}
                   </TableCell>
                   <TableCell>
                     {app.status === 'submitted' ? (

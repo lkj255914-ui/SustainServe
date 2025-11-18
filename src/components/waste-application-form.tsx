@@ -48,11 +48,9 @@ import {
   uploadString,
   getDownloadURL,
 } from 'firebase/storage';
-import imageCompression from 'browser-image-compression';
 import ExifReader from 'exifreader';
 import { runWasteVerificationAction } from '@/app/actions';
 import type { VerifyWasteImageOutput } from '@/ai/flows/verify-waste-image';
-import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 const formSchema = z.object({
@@ -105,63 +103,36 @@ export function WasteApplicationForm() {
         const tags = await ExifReader.load(file);
         const latitude = tags?.GPSLatitude?.description;
         const longitude = tags?.GPSLongitude?.description;
-
-        if (typeof latitude === 'number' && typeof longitude === 'number') {
-          form.setValue('photoLatitude', latitude, { shouldValidate: true });
-          form.setValue('photoLongitude', longitude, {
-            shouldValidate: true,
-          });
-          toast({
-            title: 'Photo Location Found',
-            description:
-              'GPS coordinates were extracted from the photo metadata.',
-          });
+        if (latitude && longitude) {
+            form.setValue('photoLatitude', latitude as number);
+            form.setValue('photoLongitude', longitude as number);
+            toast({
+                title: 'Photo Location Found',
+                description: 'GPS coordinates were extracted from the photo metadata.',
+            });
+        } else {
+            toast({
+                title: 'Photo Location Not Found',
+                description: 'No GPS coordinates were found in the photo metadata.',
+                variant: 'destructive',
+            });
         }
       } catch (e) {
         console.warn('Could not read EXIF data from photo.', e);
+         toast({
+            title: 'Metadata Error',
+            description: 'Could not read location data from the photo.',
+            variant: 'destructive',
+        });
       }
 
-      const options = {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1920,
-        useWebWorker: true,
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUri = reader.result as string;
+        setPhotoPreview(dataUri);
+        form.setValue('photoDataUri', dataUri);
       };
-
-      try {
-        toast({
-          title: 'Compressing Image...',
-          description: 'Please wait while we optimize your photo.',
-        });
-        const compressedFile = await imageCompression(file, options);
-
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const dataUri = reader.result as string;
-          setPhotoPreview(dataUri);
-          form.setValue('photoDataUri', dataUri);
-          toast({
-            title: 'Image Ready!',
-            description:
-              'Your photo has been compressed and is ready for upload.',
-          });
-        };
-        reader.readAsDataURL(compressedFile);
-      } catch (error) {
-        console.error('Image compression error:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Compression Failed',
-          description:
-            'Could not compress the image. Please try another one.',
-        });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const dataUri = reader.result as string;
-          setPhotoPreview(dataUri);
-          form.setValue('photoDataUri', dataUri);
-        };
-        reader.readAsDataURL(file);
-      }
+      reader.readAsDataURL(file);
     }
   };
 
