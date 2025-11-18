@@ -7,9 +7,9 @@ import {
 } from '@/ai/flows/optimize-collection-routes';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { WasteApplication } from './lib/types';
+import type { WasteApplication } from '@/lib/types';
 import { getFirestore } from 'firebase-admin/firestore';
-import { initAdmin } from './lib/firebase-admin';
+import { initAdmin } from '@/lib/firebase-admin';
 
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -25,8 +25,8 @@ export async function runRouteOptimizationAction(
     wasteApplications: applications.map(app => ({
         applicationId: app.id,
         address: app.address,
-        latitude: app.locationLatitude,
-        longitude: app.locationLongitude,
+        latitude: app.locationLatitude ?? 0,
+        longitude: app.locationLongitude ?? 0,
         wasteType: app.wasteType,
         quantity: String(app.quantity),
         department: app.departmentId,
