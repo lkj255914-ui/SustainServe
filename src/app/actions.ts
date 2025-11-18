@@ -12,9 +12,8 @@ import {
 } from '@/ai/flows/verify-waste-image';
 import { revalidatePath } from 'next/cache';
 import type { WasteApplication } from '@/lib/types';
-import { getFirestore, doc, updateDoc } from 'firebase/firestore';
-import { initializeApp, getApps }from 'firebase/app';
-import { firebaseConfig } from '@/firebase/config';
+import { initAdmin } from '@/lib/firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 
 
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
@@ -54,24 +53,16 @@ export async function runRouteOptimizationAction(
   }
 }
 
-// Helper to initialize a client-side app within server actions
-const getClientApp = () => {
-    if (getApps().length) {
-        return getApps()[0];
-    }
-    return initializeApp(firebaseConfig);
-}
-
 export async function updateApplicationStatusAction(
   applicationId: string,
   status: 'approved' | 'rejected'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const app = getClientApp();
-    const db = getFirestore(app);
-    const applicationRef = doc(db, 'wasteApplications', applicationId);
+    await initAdmin();
+    const db = getFirestore();
+    const applicationRef = db.collection('wasteApplications').doc(applicationId);
 
-    await updateDoc(applicationRef, { status });
+    await applicationRef.update({ status });
 
     // Revalidate the path to update the cache on the client
     revalidatePath('/admin');
@@ -82,7 +73,7 @@ export async function updateApplicationStatusAction(
    {
     console.error('Error updating application status:', error);
     // Provide a more specific error message for permission issues
-    if (error.code === 'permission-denied') {
+    if (error.code === 'permission-denied' || error.code === 7) { // Firestore permission denied code is 7
         return { success: false, error: 'Permission denied. You might not have the required admin rights.' };
     }
     return { success: false, error: error.message || 'Failed to update status.' };
