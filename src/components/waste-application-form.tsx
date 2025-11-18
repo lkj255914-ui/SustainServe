@@ -40,14 +40,8 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
 import { addDoc, collection } from 'firebase/firestore';
-import {
-  getStorage,
-  ref,
-  uploadString,
-  getDownloadURL,
-} from 'firebase/storage';
 import { runWasteVerificationAction } from '@/app/actions';
 import type { VerifyWasteImageOutput } from '@/ai/flows/verify-waste-image';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -193,28 +187,12 @@ export function WasteApplicationForm() {
     setIsSubmitPending(true);
 
     try {
-      let photoUrl = '';
-      if (values.photoDataUri) {
-        const storage = getStorage();
-        const storageRef = ref(
-          storage,
-          `waste-photos/${user.uid}/${Date.now()}`
-        );
-        const snapshot = await uploadString(
-          storageRef,
-          values.photoDataUri,
-          'data_url'
-        );
-        photoUrl = await getDownloadURL(snapshot.ref);
-      }
-
       const applicationsCollection = collection(
         firestore,
         'wasteApplications'
       );
       const applicationData = {
         ...values,
-        photoUrl: photoUrl,
         quantity: parseFloat(values.quantity) || 0,
         userId: user.uid,
         userEmail: user.email,

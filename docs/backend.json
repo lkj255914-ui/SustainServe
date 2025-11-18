@@ -43,10 +43,6 @@
           "type": "number",
           "description": "Latitude of the waste location."
         },
-        "photoUrl": {
-          "type": "string",
-          "description": "URL of the uploaded photo of the waste."
-        },
         "address": {
           "type": "string",
           "description": "Address of the waste location."
