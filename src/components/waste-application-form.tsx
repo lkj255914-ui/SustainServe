@@ -190,8 +190,8 @@ export function WasteApplicationForm() {
     }
 
     startTransition(async () => {
-      let photoUrl = '';
       try {
+        let photoUrl = '';
         if (values.photoDataUri) {
           toast({
             title: 'Uploading Photo...',
@@ -199,14 +199,33 @@ export function WasteApplicationForm() {
           });
           const storage = getStorage();
           const storageRef = ref(storage, `waste-photos/${user.uid}/${Date.now()}`);
+          
+          // Non-blocking upload
+          uploadString(storageRef, values.photoDataUri, 'data_url').then(snapshot => {
+            getDownloadURL(snapshot.ref).then(url => {
+              // Note: This happens in the background. The user has already seen the success message.
+              // We could potentially update the document with the URL later if needed,
+              // but for now, we'll send it with the initial data.
+              // To do that, we'd need to change the logic slightly.
+            });
+          });
+        }
+        
+        const applicationsCollection = collection(firestore, 'wasteApplications');
+
+        // To make the UI feel instant, we'll get the download URL first.
+        // For a true "fire-and-forget", we would save the doc and update the URL later.
+        // Let's stick to the slightly slower but more robust method.
+        if (values.photoDataUri) {
+          const storage = getStorage();
+          const storageRef = ref(storage, `waste-photos/${user.uid}/${Date.now()}`);
           const snapshot = await uploadString(storageRef, values.photoDataUri, 'data_url');
           photoUrl = await getDownloadURL(snapshot.ref);
         }
 
-        const applicationsCollection = collection(firestore, 'wasteApplications');
+
         const applicationData = {
           ...values,
-          id: '',
           photoUrl: photoUrl,
           quantity: parseFloat(values.quantity) || 0,
           userId: user.uid,
@@ -215,6 +234,7 @@ export function WasteApplicationForm() {
           submissionDate: new Date().toISOString(),
         };
         delete (applicationData as any).photoDataUri;
+        delete (applicationData as any).id; // Ensure no client-side id is sent
         
         const docRef = await addDocumentNonBlocking(applicationsCollection, applicationData);
         
@@ -355,36 +375,26 @@ export function WasteApplicationForm() {
                     </FormItem>
                   )}
                 />
-                 <FormField
-                  control={form.control}
-                  name="photoLatitude"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Photo Geolocation</FormLabel>
-                       <div className="flex gap-2">
-                        <FormControl>
-                            <Input
-                            placeholder="Photo Latitude"
-                            {...field}
-                            value={field.value ?? ''}
-                            disabled
-                            />
-                        </FormControl>
-                         <FormControl>
-                            <Input
-                                placeholder="Photo Longitude"
-                                {...form.register('photoLongitude')}
-                                value={form.getValues('photoLongitude') ?? ''}
-                                disabled
-                            />
-                        </FormControl>
-                       </div>
-                      <FormDescription>
-                        GPS data extracted automatically from photo metadata, if available.
-                      </FormDescription>
-                    </FormItem>
-                  )}
-                />
+                 <FormItem>
+                    <FormLabel>Photo Geolocation</FormLabel>
+                      <div className="flex gap-2">
+                          <Input
+                          placeholder="Photo Latitude"
+                          {...form.register('photoLatitude')}
+                          value={form.getValues('photoLatitude') ?? ''}
+                          disabled
+                          />
+                          <Input
+                              placeholder="Photo Longitude"
+                              {...form.register('photoLongitude')}
+                              value={form.getValues('photoLongitude') ?? ''}
+                              disabled
+                          />
+                      </div>
+                    <FormDescription>
+                      GPS data extracted automatically from photo metadata, if available.
+                    </FormDescription>
+                  </FormItem>
                 <FormField
                   control={form.control}
                   name="wasteType"
@@ -460,5 +470,7 @@ export function WasteApplicationForm() {
     </Card>
   );
 }
+
+    
 
     
