@@ -35,10 +35,10 @@ export function Navbar() {
             Team
           </Button>
           <Button variant="ghost" asChild>
-            <Link href="/login">Login</Link>
+            <Link href="/auth">Login</Link>
           </Button>
           <Button asChild>
-            <Link href="/signup">Get Started</Link>
+            <Link href="/auth?form=signup">Get Started</Link>
           </Button>
         </nav>
       </div>

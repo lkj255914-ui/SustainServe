@@ -50,7 +50,7 @@ export default function LandingPage() {
               greener impact.
             </p>
             <Button size="lg" className="mt-8" asChild>
-              <Link href="/signup">
+              <Link href="/auth">
                 Get Started <ArrowRight className="ml-2" />
               </Link>
             </Button>
