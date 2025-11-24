@@ -2,16 +2,33 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Logo } from '@/components/logo';
 import { ArrowRight } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default function LandingPage() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
+  const teamImages = PlaceHolderImages.filter((img) =>
+    img.id.startsWith('team-')
+  );
+  const teamMembers = [
+    { name: 'Jyothi Pratap S', role: 'Team Lead', imageId: 'team-1' },
+    { name: 'Kishan S', role: 'Developer', imageId: 'team-2' },
+    { name: 'Chandana M', role: 'Developer', imageId: 'team-3' },
+    { name: 'Bhoomika R', role: 'Developer', imageId: 'team-4' },
+    { name: 'Harshitha V', role: 'Developer', imageId: 'team-5' },
+    { name: 'Ganavi M', role: 'Developer', imageId: 'team-6' },
+    { name: 'Deekshitha R', role: 'Developer', imageId: 'team-7' },
+    { name: 'Yashaswini S', role: 'Developer', imageId: 'team-8' },
+    { name: 'Likitha D', role: 'Developer', imageId: 'team-9' },
+    { name: 'Divya M', role: 'Developer', imageId: 'team-10' },
+  ];
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="container mx-auto flex h-20 items-center justify-between px-4">
-        <Logo />
+        <div className="font-headline text-lg font-bold text-foreground">
+          MAHARAJA INSTITUTE OF TECHNOLOGY THANDAVAPURA MYSORE
+        </div>
         <nav className="flex items-center gap-4">
           <Button variant="ghost" asChild>
             <Link href="/login">Login</Link>
@@ -81,7 +98,8 @@ export default function LandingPage() {
                 Smart Applications
               </h3>
               <p className="mt-2 text-muted-foreground">
-                Easily submit waste disposal requests with photo uploads and AI-powered type suggestions.
+                Easily submit waste disposal requests with photo uploads and
+                AI-powered type verification.
               </p>
             </div>
             <div className="flex flex-col items-center text-center">
@@ -108,7 +126,8 @@ export default function LandingPage() {
                 Admin Dashboard
               </h3>
               <p className="mt-2 text-muted-foreground">
-                A powerful dashboard for admins to manage all applications and gain insights.
+                A powerful dashboard for admins to manage all applications and
+                gain insights.
               </p>
             </div>
             <div className="flex flex-col items-center text-center">
@@ -125,27 +144,65 @@ export default function LandingPage() {
                   strokeLinejoin="round"
                   className="h-8 w-8"
                 >
-                  <path d="M10.1 2.14c.3-.2.6-.3.9-.3.3 0 .6.1.9.3l7.3 4.6c.3.2.5.5.5.9v9.2c0 .3-.2.6-.5.9l-7.3 4.6c-.3.2-.6.3-.9.3s-.6-.1-.9-.3l-7.3-4.6a2 2 0 0 1-.5-.9V7.6c0-.3.2-.6.5-.9Z"/>
-                  <path d="M12 22V12"/>
-                  <path d="m12 12-7.3-4.6"/>
-                  <path d="m21.2 7-9.2 5.8"/>
-                  <path d="m3.8 7 8.4 5.2"/>
-                  <path d="m12 12-2.1-7.9"/>
+                  <path d="M10.1 2.14c.3-.2.6-.3.9-.3.3 0 .6.1.9.3l7.3 4.6c.3.2.5.5.5.9v9.2c0 .3-.2.6-.5.9l-7.3 4.6c-.3.2-.6.3-.9.3s-.6-.1-.9-.3l-7.3-4.6a2 2 0 0 1-.5-.9V7.6c0-.3.2-.6.5-.9Z" />
+                  <path d="M12 22V12" />
+                  <path d="m12 12-7.3-4.6" />
+                  <path d="m21.2 7-9.2 5.8" />
+                  <path d="m3.8 7 8.4 5.2" />
+                  <path d="m12 12-2.1-7.9" />
                 </svg>
               </div>
               <h3 className="font-headline mt-4 text-2xl font-semibold">
                 Intelligent Routing
               </h3>
               <p className="mt-2 text-muted-foreground">
-                Leverage GenAI to optimize waste collection routes, saving time and resources.
+                Leverage GenAI to optimize waste collection routes, saving time
+                and resources.
               </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-muted/40 py-16">
+          <div className="container mx-auto px-4">
+            <h2 className="font-headline text-center text-4xl font-bold">
+              Meet the Team
+            </h2>
+            <p className="mt-4 text-center text-muted-foreground">
+              The dedicated students behind the WasteWise project.
+            </p>
+            <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {teamMembers.map((member) => {
+                const image = teamImages.find((img) => img.id === member.imageId);
+                return (
+                  <div key={member.name} className="group text-center">
+                    <Card className="overflow-hidden">
+                      <CardContent className="p-0">
+                        {image && (
+                          <Image
+                            src={image.imageUrl}
+                            alt={`Photo of ${member.name}`}
+                            width={200}
+                            height={200}
+                            className="h-auto w-full object-cover aspect-square transition-transform duration-300 group-hover:scale-105"
+                            data-ai-hint={image.imageHint}
+                          />
+                        )}
+                      </CardContent>
+                    </Card>
+                    <h3 className="mt-4 font-semibold text-lg">{member.name}</h3>
+                    <p className="text-sm text-muted-foreground">{member.role}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
       </main>
       <footer className="container mx-auto border-t px-4 py-6">
         <p className="text-center text-muted-foreground">
-          &copy; {new Date().getFullYear()} WasteWise. All rights reserved.
+          &copy; {new Date().getFullYear()} WasteWise - MIT Thandavapura. All
+          rights reserved.
         </p>
       </footer>
     </div>
