@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Navbar } from '@/components/navbar';
 
 export default function LandingPage() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
@@ -25,19 +26,7 @@ export default function LandingPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="container mx-auto flex h-20 items-center justify-between px-4">
-        <div className="font-headline text-lg font-bold text-foreground">
-          MAHARAJA INSTITUTE OF TECHNOLOGY THANDAVAPURA MYSORE
-        </div>
-        <nav className="flex items-center gap-4">
-          <Button variant="ghost" asChild>
-            <Link href="/login">Login</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/signup">Get Started</Link>
-          </Button>
-        </nav>
-      </header>
+      <Navbar />
       <main className="flex-1">
         <section className="relative h-[60vh] min-h-[500px] w-full">
           {heroImage && (
@@ -68,7 +57,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="container mx-auto px-4 py-16">
+        <section id="features" className="container mx-auto px-4 py-16">
           <h2 className="font-headline text-center text-4xl font-bold">
             Features
           </h2>
@@ -163,7 +152,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="bg-muted/40 py-16">
+        <section id="team" className="bg-muted/40 py-16">
           <div className="container mx-auto px-4">
             <h2 className="font-headline text-center text-4xl font-bold">
               Meet the Team

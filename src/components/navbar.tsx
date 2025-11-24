@@ -1,0 +1,47 @@
+'use client';
+
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Recycle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+export function Navbar() {
+  const scrollTo = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container mx-auto flex h-14 items-center justify-between px-4">
+        <div className="flex items-center gap-6">
+          <Link href="/" className="flex items-center gap-2">
+            <Recycle className="h-6 w-6 text-primary" />
+            <span className="hidden font-bold sm:inline-block">WasteWise</span>
+          </Link>
+          <nav className="hidden items-center gap-4 text-sm md:flex">
+             <span className="font-semibold text-muted-foreground cursor-default">MAHARAJA INSTITUTE OF TECHNOLOGY THANDAVAPURA MYSORE</span>
+          </nav>
+        </div>
+        <nav className="flex items-center gap-4">
+           <Button variant="ghost" onClick={() => scrollTo('features')}>
+            Features
+          </Button>
+           <Button variant="ghost" onClick={() => scrollTo('team')}>
+            Team
+          </Button>
+          <Button variant="ghost" asChild>
+            <Link href="/login">Login</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/signup">Get Started</Link>
+          </Button>
+        </nav>
+      </div>
+    </header>
+  );
+}
