@@ -14,7 +14,6 @@ import { SignupForm } from '@/components/signup-form';
 import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/logo';
-import Link from 'next/link';
 
 function AuthPageContent() {
   const searchParams = useSearchParams();
@@ -26,9 +25,9 @@ function AuthPageContent() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
-        <Link href="/" className="flex justify-center mb-4">
+        <div className="flex justify-center mb-4">
            <Logo />
-        </Link>
+        </div>
         <CardTitle className="font-headline text-2xl">
           {formType === 'login' ? 'Welcome Back' : 'Create an Account'}
         </CardTitle>
