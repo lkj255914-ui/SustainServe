@@ -190,7 +190,7 @@ export default function LandingPage() {
       </main>
       <footer className="container mx-auto border-t px-4 py-6">
         <p className="text-center text-muted-foreground">
-          &copy; {new Date().getFullYear()} WasteWise - MIT Thandavapura. All
+          &copy; {new Date().getFullYear()} WasteWise - MAHARAJA INSTITUTE OF TECHNOLOGY THANDAVAPURA. All
           rights reserved.
         </p>
       </footer>
