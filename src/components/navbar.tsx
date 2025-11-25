@@ -24,7 +24,7 @@ export function Navbar() {
             <span className="hidden font-bold sm:inline-block">WasteWise</span>
           </Link>
           <nav className="hidden items-center gap-4 text-sm md:flex">
-             <span className="font-semibold text-muted-foreground cursor-default">MAHARAJA INSTITUTE OF TECHNOLOGY THANDAVAPURA</span>
+             <span className="font-semibold text-muted-foreground cursor-default">MAHARAJA INSTITUTE OF TECHNOLOGY THANDAVAPURA MYSORE</span>
           </nav>
         </div>
         <nav className="flex items-center gap-4">
