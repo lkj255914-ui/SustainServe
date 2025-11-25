@@ -2,12 +2,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, School } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Navbar } from '@/components/navbar';
 
 export default function LandingPage() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
+  const mitLogo = PlaceHolderImages.find((img) => img.id === 'mit-logo');
   const teamImages = PlaceHolderImages.filter((img) =>
     img.id.startsWith('team-')
   );
@@ -27,9 +28,21 @@ export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="bg-primary/10 py-4 text-center text-primary-foreground">
-        <h1 className="font-headline text-2xl font-bold tracking-wider">
-          MAHARAJA INSTITUTE OF TECHNOLOGY THANDAVAPURA
-        </h1>
+        <div className="container mx-auto flex items-center justify-center gap-4 px-4">
+          {mitLogo && (
+            <Image
+              src={mitLogo.imageUrl}
+              alt={mitLogo.description}
+              width={50}
+              height={50}
+              className="h-12 w-12 object-contain"
+              data-ai-hint={mitLogo.imageHint}
+            />
+          )}
+          <h1 className="font-headline text-2xl font-bold tracking-wider">
+            MAHARAJA INSTITUTE OF TECHNOLOGY THANDAVAPURA
+          </h1>
+        </div>
       </div>
       <Navbar />
       <main className="flex-1">
