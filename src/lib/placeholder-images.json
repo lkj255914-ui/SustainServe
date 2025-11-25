@@ -13,12 +13,6 @@
       "imageHint": "green abstract"
     },
     {
-      "id": "mit-logo",
-      "description": "Logo for Maharaja Institute of Technology",
-      "imageUrl": "https://images.unsplash.com/photo-1728206379417-29fac7328c2f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxjb2xsZWdlJTIwbG9nb3xlbnwwfHx8fDE3NjQwMzI1NjR8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "college logo"
-    },
-    {
       "id": "team-1",
       "description": "Team member 1 placeholder image",
       "imageUrl": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjM5Mjg3NDZ8MA&ixlib=rb-4.1.0&q=80&w=1080",

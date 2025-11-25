@@ -8,7 +8,6 @@ import { Navbar } from '@/components/navbar';
 
 export default function LandingPage() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
-  const mitLogo = PlaceHolderImages.find((img) => img.id === 'mit-logo');
   const teamImages = PlaceHolderImages.filter((img) =>
     img.id.startsWith('team-')
   );
@@ -29,16 +28,13 @@ export default function LandingPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <div className="bg-primary/10 py-4 text-center text-primary-foreground">
         <div className="container mx-auto flex items-center justify-center gap-4 px-4">
-          {mitLogo && (
-            <Image
-              src={mitLogo.imageUrl}
-              alt={mitLogo.description}
-              width={50}
-              height={50}
-              className="h-12 w-12 object-contain"
-              data-ai-hint={mitLogo.imageHint}
-            />
-          )}
+          <Image
+            src="/mit-logo.png"
+            alt="Maharaja Institute of Technology Logo"
+            width={50}
+            height={50}
+            className="h-12 w-12 object-contain"
+          />
           <h1 className="font-headline text-2xl font-bold tracking-wider">
             MAHARAJA INSTITUTE OF TECHNOLOGY THANDAVAPURA
           </h1>
