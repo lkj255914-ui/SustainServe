@@ -26,8 +26,10 @@ export default function LandingPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <div className="bg-primary/10 py-2 text-center text-sm font-semibold text-primary-foreground">
-        <h1>MAHARAJA INSTITUTE OF TECHNOLOGY THANDAVAPURA</h1>
+      <div className="bg-primary/10 py-4 text-center text-primary-foreground">
+        <h1 className="font-headline text-2xl font-bold tracking-wider">
+          MAHARAJA INSTITUTE OF TECHNOLOGY THANDAVAPURA
+        </h1>
       </div>
       <Navbar />
       <main className="flex-1">
