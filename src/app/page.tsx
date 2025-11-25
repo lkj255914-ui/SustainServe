@@ -8,21 +8,6 @@ import { Navbar } from '@/components/navbar';
 
 export default function LandingPage() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
-  const teamImages = PlaceHolderImages.filter((img) =>
-    img.id.startsWith('team-')
-  );
-  const teamMembers = [
-    { name: 'Jyothi Pratap S', role: 'Team Lead', imageId: 'team-1' },
-    { name: 'Kishan S', role: 'Developer', imageId: 'team-2' },
-    { name: 'Chandana M', role: 'Developer', imageId: 'team-3' },
-    { name: 'Bhoomika R', role: 'Developer', imageId: 'team-4' },
-    { name: 'Harshitha V', role: 'Developer', imageId: 'team-5' },
-    { name: 'Ganavi M', role: 'Developer', imageId: 'team-6' },
-    { name: 'Deekshitha R', role: 'Developer', imageId: 'team-7' },
-    { name: 'Yashaswini S', role: 'Developer', imageId: 'team-8' },
-    { name: 'Likitha D', role: 'Developer', imageId: 'team-9' },
-    { name: 'Divya M', role: 'Developer', imageId: 'team-10' },
-  ];
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -162,42 +147,6 @@ export default function LandingPage() {
                 Leverage GenAI to optimize waste collection routes, saving time
                 and resources.
               </p>
-            </div>
-          </div>
-        </section>
-
-        <section id="team" className="bg-muted/40 py-16">
-          <div className="container mx-auto px-4">
-            <h2 className="font-headline text-center text-4xl font-bold">
-              Meet the Team
-            </h2>
-            <p className="mt-4 text-center text-muted-foreground">
-              The dedicated students behind the WasteWise project.
-            </p>
-            <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {teamMembers.map((member) => {
-                const image = teamImages.find((img) => img.id === member.imageId);
-                return (
-                  <div key={member.name} className="group text-center">
-                    <Card className="overflow-hidden">
-                      <CardContent className="p-0">
-                        {image && (
-                          <Image
-                            src={image.imageUrl}
-                            alt={`Photo of ${member.name}`}
-                            width={200}
-                            height={200}
-                            className="h-auto w-full object-cover aspect-square transition-transform duration-300 group-hover:scale-105"
-                            data-ai-hint={image.imageHint}
-                          />
-                        )}
-                      </CardContent>
-                    </Card>
-                    <h3 className="mt-4 font-semibold text-lg">{member.name}</h3>
-                    <p className="text-sm text-muted-foreground">{member.role}</p>
-                  </div>
-                );
-              })}
             </div>
           </div>
         </section>

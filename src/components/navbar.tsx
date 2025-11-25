@@ -28,9 +28,6 @@ export function Navbar() {
            <Button variant="ghost" onClick={() => scrollTo('features')}>
             Features
           </Button>
-           <Button variant="ghost" onClick={() => scrollTo('team')}>
-            Team
-          </Button>
           <Button variant="ghost" asChild>
             <Link href="/auth">Login</Link>
           </Button>
